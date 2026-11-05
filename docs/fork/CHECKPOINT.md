@@ -146,10 +146,27 @@ RUN_FINISHED` with the expected assistant text, both on the host and inside the
 `opendots-app` container; the thread and its messages were re-read from
 PostgreSQL after a server restart and after a container restart.
 
+### Slack, verified live (2026-11-05)
+
+The self-hosted Slack integration was exercised against a real workspace
+(Nexlabs, `T0CF2380YQM`, channel `#geral`). App `OpenDots` (`A0CETPAP5B9`) was
+created from `deployment/slack-app-manifest.json`, installed, and added to the
+channel. `setup().slack` reported `online`.
+
+A correctly signed `app_mention` event was delivered to
+`POST /api/slack/events` through a public tunnel and returned `200 {"ok":true}`;
+the agent then ran and posted **"SLACK OK"** back to the channel. This covers
+signature verification, the team/user allowlist, the agent turn and the reply.
+An unsigned request to the same route returned `401`.
+
+Not covered by that run: Slack's own retry/redelivery behaviour, and the
+production Request URL (the tunnel is ephemeral; the VPS must use its own
+domain).
+
 ### Remaining blockers
 
-- **B7** Slack needs a live workspace and a public HTTPS Request URL; the
-  in-app browser had no Slack session, so the app could not be created.
+- **B7** _(resolved — see above)_ Slack was verified end to end against a live
+  workspace.
 - **B8** Voice Realtime is OpenAI-only (`src/server/voice.ts`).
 - **B9** The bundled CopilotKit web-inspector still carries its telemetry URL
   constant. No request to it was observed, but it is not provably dead code.
