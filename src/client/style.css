@@ -4393,3 +4393,48 @@ h3 {
   width: 132px !important;
   height: 132px !important;
 }
+
+/* ── Depth layer ───────────────────────────────────────────────────────────
+   Glass only reads as glass when there is something behind it to refract. A
+   flat fill gave backdrop-filter nothing to work with, so the canvas gets a
+   soft dual gradient and the centre column becomes translucent. */
+:root[data-theme='dark'] .app {
+  background:
+    radial-gradient(
+      1100px 620px at 18% -12%,
+      rgba(96, 118, 255, 0.1),
+      transparent 62%
+    ),
+    radial-gradient(
+      900px 520px at 92% 112%,
+      rgba(176, 116, 255, 0.08),
+      transparent 60%
+    ),
+    #0a0a0e;
+}
+:root[data-theme='dark'] .chat-workspace,
+:root[data-theme='dark'] .chat-column {
+  background: transparent;
+}
+/* A single ambient orb behind the conversation gives the composer real depth. */
+:root[data-theme='dark'] .chat-column::before {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 34%;
+  width: 520px;
+  height: 520px;
+  transform: translate(-50%, -50%);
+  background: radial-gradient(
+    circle,
+    rgba(110, 130, 255, 0.12),
+    transparent 65%
+  );
+  filter: blur(40px);
+  pointer-events: none;
+  z-index: 0;
+}
+:root[data-theme='dark'] .chat-column > * {
+  position: relative;
+  z-index: 1;
+}
