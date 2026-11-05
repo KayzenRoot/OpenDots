@@ -2018,27 +2018,28 @@ h3 {
 }
 .empty-chat-persona {
   text-align: center;
-  margin-bottom: 24px;
+  margin-bottom: 34px;
   position: relative;
 }
 .empty-chat-persona .mascot {
-  width: 105px;
-  height: 105px;
+  width: 132px;
+  height: 132px;
 }
 .empty-chat-persona h2 {
-  font-size: 15px;
-  letter-spacing: -0.2px;
-  margin: 0 0 5px;
+  font-size: 21px;
+  font-weight: 600;
+  letter-spacing: -0.4px;
+  margin: 14px 0 7px;
 }
 .empty-chat-persona p {
-  font-size: 10px;
-  max-width: 370px;
-  margin: 0 auto 8px;
-  color: #a0a3ae;
-  line-height: 1.7;
+  font-size: 12.5px;
+  max-width: 440px;
+  margin: 0 auto 12px;
+  color: #9a9daa;
+  line-height: 1.65;
 }
 .empty-chat-persona .text-button {
-  font-size: 9px;
+  font-size: 11px;
 }
 .starter-copy h1 {
   font-size: 37px;
@@ -4282,4 +4283,113 @@ h3 {
   white-space: pre-wrap;
   overflow-wrap: anywhere;
   font-size: 11px;
+}
+
+/* ── Elegance layer ────────────────────────────────────────────────────────
+   Translucent surfaces, Apple-like rhythm and a living mascot. Scoped to the
+   dark theme so it composes with the generated light palette instead of
+   fighting it. */
+:root[data-theme='dark'] {
+  --glass-bg: rgba(255, 255, 255, 0.045);
+  --glass-line: rgba(255, 255, 255, 0.09);
+  --glass-line-strong: rgba(255, 255, 255, 0.18);
+  --glass-shadow: 0 24px 70px rgba(0, 0, 0, 0.55);
+  --ease-spring: cubic-bezier(0.22, 1, 0.36, 1);
+}
+:root[data-theme='dark'] .sidebar {
+  background: linear-gradient(
+    180deg,
+    rgba(20, 20, 25, 0.94),
+    rgba(13, 13, 17, 0.97)
+  );
+  backdrop-filter: blur(24px) saturate(140%);
+  border-right: 1px solid var(--glass-line);
+}
+:root[data-theme='dark'] .dot-nav-row {
+  border-radius: 12px;
+  transition:
+    background 0.22s var(--ease-spring),
+    transform 0.22s var(--ease-spring);
+}
+:root[data-theme='dark'] .dot-nav-row:hover {
+  background: var(--glass-bg);
+  transform: translateX(2px);
+}
+:root[data-theme='dark'] .composer,
+:root[data-theme='dark'] .chat-composer {
+  background: var(--glass-bg);
+  backdrop-filter: blur(30px) saturate(160%);
+  border: 1px solid var(--glass-line);
+  border-radius: 22px;
+  box-shadow: var(--glass-shadow);
+  transition:
+    border-color 0.25s var(--ease-spring),
+    box-shadow 0.25s var(--ease-spring);
+}
+:root[data-theme='dark'] .composer:focus-within,
+:root[data-theme='dark'] .chat-composer:focus-within {
+  border-color: var(--glass-line-strong);
+  box-shadow:
+    0 28px 80px rgba(0, 0, 0, 0.62),
+    inset 0 0 0 1px var(--glass-line-strong);
+}
+
+/* Living mascot: a slow float with a breathing halo behind it. */
+@keyframes od-float {
+  0%,
+  100% {
+    transform: translateY(0) rotate(0deg);
+  }
+  50% {
+    transform: translateY(-6px) rotate(1.5deg);
+  }
+}
+@keyframes od-halo {
+  0%,
+  100% {
+    opacity: 0.3;
+    transform: scale(0.92);
+  }
+  50% {
+    opacity: 0.62;
+    transform: scale(1.06);
+  }
+}
+:root[data-theme='dark'] .empty-chat-persona .mascot {
+  position: relative;
+  z-index: 1;
+  animation: od-float 6s ease-in-out infinite;
+  will-change: transform;
+}
+:root[data-theme='dark'] .empty-chat-persona::before {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 4px;
+  z-index: 0;
+  width: 190px;
+  height: 190px;
+  transform: translateX(-50%);
+  background: radial-gradient(
+    circle,
+    rgba(120, 140, 255, 0.24),
+    transparent 68%
+  );
+  filter: blur(18px);
+  animation: od-halo 7s ease-in-out infinite;
+  pointer-events: none;
+}
+@media (prefers-reduced-motion: reduce) {
+  :root[data-theme='dark'] .empty-chat-persona .mascot,
+  :root[data-theme='dark'] .empty-chat-persona::before {
+    animation: none;
+  }
+}
+
+/* The mascot ships at 69px through a competing class; give the empty state a
+   hero with presence. Scoped to dark so the light theme is untouched. */
+:root[data-theme='dark'] .empty-chat-persona .mascot,
+:root[data-theme='dark'] .empty-chat-persona .mascot .dot-body {
+  width: 132px !important;
+  height: 132px !important;
 }
