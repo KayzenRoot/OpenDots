@@ -31,6 +31,15 @@ if ($LASTEXITCODE -ne 0) {
 }
 
 if (-not (Test-Path '.env.local')) {
+    # A lost .env.local plus an existing database volume is unrecoverable: the new
+    # generated password would not match the one baked into the volume. Fail with
+    # an explanation instead of starting a stack that cannot authenticate.
+    $volumes = docker volume ls --format '{{.Name}}' | Select-String 'opendots-pgdata'
+    if ($volumes) {
+        Fail ('A database volume already exists but .env.local is missing. ' +
+              'The database password cannot be recovered. Restore .env.local from a backup, ' +
+              'or remove the volume (docker volume rm ' + ($volumes | Select-Object -First 1).ToString().Trim() + ') to start over, which deletes all conversations.')
+    }
     Info 'creating .env.local with generated secrets'
     if (-not (Test-Path '.env.example')) { Fail '.env.example not found; is this the OpenDots repository?' }
 
