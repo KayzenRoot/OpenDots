@@ -87,14 +87,22 @@ compose exec -T "$PG_SERVICE" rm -f /tmp/opendots-restore.pgdump >/dev/null 2>&1
 
 # --- 3. restore SQLite -------------------------------------------------------
 log "step 3/5: restoring SQLite"
-compose run -T --rm --no-deps --user 0:0 -v "$backup_dir:/restore:ro" \
+# The app service drops all capabilities, so root alone cannot unlink a file
+# owned by `node`. Re-add only DAC_OVERRIDE for this one-shot restore container
+# so it can replace the SQLite file, then chown it back to the app user.
+compose run -T --rm --no-deps --user 0:0 --cap-add DAC_OVERRIDE --cap-add CHOWN \
+  -v "$backup_dir:/restore:ro" \
   --entrypoint sh "$APP_SERVICE" -c '
     set -eu
     db="${DATABASE_PATH:-/data/opendots.sqlite}"
     rm -f "$db" "$db-wal" "$db-shm"
     cp /restore/opendots.sqlite "$db"
-    chown node:node "$db" 2>/dev/null || true
-    chmod 0644 "$db" 2>/dev/null || true
+    # chmod while root still owns the fresh copy: after chown it belongs to
+    # `node`, and root without CAP_FOWNER could not change its mode.
+    chmod 0644 "$db"
+    # The app runs as `node`; a root-owned file makes SQLite fail with
+    # "attempt to write a readonly database", so ownership is not optional.
+    chown node:node "$db"
   ' || die 'SQLite restore failed'
 
 # --- 4. start the app --------------------------------------------------------
