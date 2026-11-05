@@ -1927,6 +1927,9 @@ h3 {
 .spaces-nav {
   max-height: 32vh;
   overflow: auto;
+  /* `overflow: auto` resets the automatic minimum size to 0, so without this the
+     list is squeezed to a few pixels by its siblings and rows render clipped. */
+  flex: 0 0 auto;
 }
 .space-group {
   margin-bottom: 17px;
