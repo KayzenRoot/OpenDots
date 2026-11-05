@@ -120,3 +120,38 @@ new modules (`src/server/pg.ts`, `conversation-store.ts`, `agent-runner.ts`,
 5. Update this checkpoint and
    [DEFINITION-OF-DONE.md](./DEFINITION-OF-DONE.md) as each item flips, with an
    evidence artifact for every DONE.
+
+## 7. Verified status (2026-11-05, supersedes §5)
+
+Branch `fork/decouple-and-harden` @ `6f310a2`, pull request
+[#103](https://github.com/KayzenRoot/OpenDots/pull/103) (80 files, +7561/−1482).
+
+| Work order                       | Status                             | Evidence                                                                                                                        |
+| -------------------------------- | ---------------------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
+| WORK-003 Postgres store + runner | DONE                               | `conversation-store.test.ts`, `agent-runner.test.ts` against PostgreSQL 17                                                      |
+| WORK-004 SSE runtime + telemetry | DONE                               | no `CopilotKitIntelligence`/`IntelligenceAgent`/`copilotkit.ai` in `src/`; browser probe recorded zero `copilotkit.ai` requests |
+| WORK-005 self-hosted Slack       | CODE COMPLETE, **UNVERIFIED live** | HMAC/replay/allowlist/idempotency tests; no real workspace round-trip                                                           |
+| WORK-006 local skills            | PARTIAL                            | `learning-store.test.ts` passes; **no editor UI or HTTP route**                                                                 |
+| WORK-007 providers               | DONE for chat                      | live turn via OpenCode Go `deepseek-v4.1-flash`; **voice still pinned to `api.openai.com`**                                     |
+| WORK-008 deployment              | PARTIAL                            | image built; stack healthy; data survived container restart. **Backup/restore round-trip not executed**                         |
+| WORK-009 evidence                | PARTIAL                            | logs in the operator's `evidence/` directory, not committed                                                                     |
+| WORK-010 security review         | **NOT DONE**                       | see B5; required before release                                                                                                 |
+
+Gates observed at that commit: `typecheck`, `lint`, `check-format`, `build`
+clean; `npm test` 388 passed / 60 files with `OPENDOTS_TEST_DATABASE_URL`, and
+Postgres suites self-skip without it.
+
+Live proof: one AG-UI turn returned `RUN_STARTED → TEXT_MESSAGE_* →
+RUN_FINISHED` with the expected assistant text, both on the host and inside the
+`opendots-app` container; the thread and its messages were re-read from
+PostgreSQL after a server restart and after a container restart.
+
+### Remaining blockers
+
+- **B7** Slack needs a live workspace and a public HTTPS Request URL; the
+  in-app browser had no Slack session, so the app could not be created.
+- **B8** Voice Realtime is OpenAI-only (`src/server/voice.ts`).
+- **B9** The bundled CopilotKit web-inspector still carries its telemetry URL
+  constant. No request to it was observed, but it is not provably dead code.
+- **B10** Docker's `COMPOSE_PROJECT_NAME` was inherited as `hive-v102`; builds
+  must pass `-p opendots` to avoid joining an unrelated project.
