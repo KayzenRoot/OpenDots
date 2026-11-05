@@ -7,6 +7,26 @@ This is the test installation. For the VPS use
 [DEPLOYMENT.md](./DEPLOYMENT.md) and `deployment/Caddyfile`, which terminates
 HTTPS for a real domain.
 
+## One-click install (desktop app)
+
+`deployment/windows/OpenDots.exe` is a native launcher (no console window):
+
+- **Double-click** — checks the stack, starts it if it is down, then opens
+  OpenDots in its **own application window** (Edge/Chrome application mode: no
+  address bar, its own taskbar entry). The Desktop and Start Menu shortcuts
+  point at it.
+- **`OpenDots.exe --install`** — runs the full installer: verifies Docker,
+  generates `.env.local` with random database and owner-token secrets, builds
+  the image, starts the stack, waits for readiness, installs autostart, and
+  creates the shortcuts.
+
+Rebuild the executable after editing `OpenDots.cs` with
+`deployment\windows\build-launcher.cmd` (uses the C# compiler that ships with
+.NET Framework; no SDK needed). The binary is gitignored.
+
+To use a different browser, the launcher tries Edge first, then Chrome, then
+falls back to the default browser.
+
 ## What runs
 
 | Service    | Image / build                        | Address                              | Purpose                            |
