@@ -126,16 +126,16 @@ new modules (`src/server/pg.ts`, `conversation-store.ts`, `agent-runner.ts`,
 Branch `fork/decouple-and-harden` @ `6f310a2`, pull request
 [#103](https://github.com/KayzenRoot/OpenDots/pull/103) (80 files, +7561/−1482).
 
-| Work order                       | Status                             | Evidence                                                                                                                        |
-| -------------------------------- | ---------------------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
-| WORK-003 Postgres store + runner | DONE                               | `conversation-store.test.ts`, `agent-runner.test.ts` against PostgreSQL 17                                                      |
-| WORK-004 SSE runtime + telemetry | DONE                               | no `CopilotKitIntelligence`/`IntelligenceAgent`/`copilotkit.ai` in `src/`; browser probe recorded zero `copilotkit.ai` requests |
-| WORK-005 self-hosted Slack       | CODE COMPLETE, **UNVERIFIED live** | HMAC/replay/allowlist/idempotency tests; no real workspace round-trip                                                           |
-| WORK-006 local skills            | PARTIAL                            | `learning-store.test.ts` passes; **no editor UI or HTTP route**                                                                 |
-| WORK-007 providers               | DONE for chat                      | live turn via OpenCode Go `deepseek-v4.1-flash`; **voice still pinned to `api.openai.com`**                                     |
-| WORK-008 deployment              | PARTIAL                            | image built; stack healthy; data survived container restart. **Backup/restore round-trip not executed**                         |
-| WORK-009 evidence                | PARTIAL                            | logs in the operator's `evidence/` directory, not committed                                                                     |
-| WORK-010 security review         | **NOT DONE**                       | see B5; required before release                                                                                                 |
+| Work order                       | Status                                | Evidence                                                                                                                                 |
+| -------------------------------- | ------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
+| WORK-003 Postgres store + runner | DONE                                  | `conversation-store.test.ts`, `agent-runner.test.ts` against PostgreSQL 17                                                               |
+| WORK-004 SSE runtime + telemetry | DONE                                  | no `CopilotKitIntelligence`/`IntelligenceAgent`/`copilotkit.ai` in `src/`; browser probe recorded zero `copilotkit.ai` requests          |
+| WORK-005 self-hosted Slack       | DONE, **verified live**               | signed event → agent → "SLACK OK" in a real channel; unsigned request → 401                                                              |
+| WORK-006 local skills            | PARTIAL                               | `learning-store.test.ts` passes; **no editor UI or HTTP route**                                                                          |
+| WORK-007 providers               | DONE for chat                         | live turn via OpenCode Go `deepseek-v4.1-flash`; **voice still pinned to `api.openai.com`**                                              |
+| WORK-008 deployment              | DONE (host); **VPS unproven**         | image built, stack healthy, data survived container restart, and a full backup/restore round-trip destroyed and recovered a conversation |
+| WORK-009 evidence                | PARTIAL                               | logs in the operator's `evidence/` directory, not committed                                                                              |
+| WORK-010 security review         | DONE, verdict **CORRECTION REQUIRED** | [SECURITY-AUDIT.md](./SECURITY-AUDIT.md); production audit 1 critical → 0                                                                |
 
 Gates observed at that commit: `typecheck`, `lint`, `check-format`, `build`
 clean; `npm test` 388 passed / 60 files with `OPENDOTS_TEST_DATABASE_URL`, and
@@ -145,6 +145,31 @@ Live proof: one AG-UI turn returned `RUN_STARTED → TEXT_MESSAGE_* →
 RUN_FINISHED` with the expected assistant text, both on the host and inside the
 `opendots-app` container; the thread and its messages were re-read from
 PostgreSQL after a server restart and after a container restart.
+
+### Backup and restore, round-trip (2026-11-05)
+
+`deployment/backup.sh` produced a quiesced pair (`opendots.pgdump` custom
+format, `opendots.sqlite`, `MANIFEST.txt`). A conversation was then deleted
+directly from PostgreSQL (3 → 2 conversations, 3 → 2 runs), and
+`deployment/restore.sh` was run: it stopped the app, dropped and recreated the
+database, restored both stores, restarted the app and reported readiness. The
+deleted conversation and its runs were back (3/3), and a live agent turn
+afterwards returned the expected text.
+
+That run found two real defects in `restore.sh`, both fixed in `70eab56`: the
+helper could not unlink the SQLite file (all capabilities dropped) and then
+could not `chmod` it after `chown`. Both were only observable by executing the
+script, which is why the round-trip is part of the gate.
+
+### Dependency remediation (2026-11-05)
+
+Production tree: 1 critical → **0**, 40 → 38 total. `dompurify` pinned to
+3.4.17 (critical sanitiser bypass), `zod` to 4.6.7 (memory-exhaustion DoS, root
+of most transitive highs), `@modelcontextprotocol/sdk` to 1.32.2. `npm audit
+fix` was deliberately reverted because it also moved `@copilotkit/*` from
+1.75.0 to 1.84.1, which changes AG-UI message types and breaks typecheck; that
+upgrade needs its own tested change. Remaining highs are transitive and
+untouched paths — see [SECURITY-AUDIT.md](./SECURITY-AUDIT.md) F5–F8.
 
 ### Slack, verified live (2026-11-05)
 
