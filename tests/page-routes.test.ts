@@ -413,7 +413,7 @@ it.each([
   new Error('Provider secret'),
   new SyntaxError('Unexpected token in provider secret'),
 ])(
-  'keeps real Intelligence failures as 503 without exposing details: %s',
+  'keeps real page operation failures as 503 without exposing details: %s',
   async (error) => {
     const { ws, app, platform } = fixture();
     ws.bindThread('valid-thread', ws.dots()[0].id, 'Conversation');
@@ -425,7 +425,7 @@ it.each([
     expect(response.status).toBe(503);
     expect(await response.json()).toEqual({
       error:
-        'Page operation could not complete. Check Intelligence setup or retry; your draft has not been discarded.',
+        'Page operation could not complete. Check setup or retry; your draft has not been discarded.',
     });
   },
 );
@@ -444,7 +444,7 @@ it('keeps page conversation response parsing failures as 503', async () => {
   expect(response.status).toBe(503);
   expect(await response.json()).toEqual({
     error:
-      'Page operation could not complete. Check Intelligence setup or retry; your draft has not been discarded.',
+      'Page operation could not complete. Check setup or retry; your draft has not been discarded.',
   });
 });
 

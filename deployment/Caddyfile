@@ -1,0 +1,71 @@
+# OpenDots reverse proxy (Caddy 2) with automatic HTTPS.
+#
+# Caddy obtains and renews Let's Encrypt certificates automatically, so the only
+# requirement is that :80 and :443 are reachable from the internet and that
+# OPENDOTS_DOMAIN resolves to this host. This is the preferred proxy.
+#
+# Set before starting Caddy:
+#   OPENDOTS_DOMAIN   your public domain (placeholder default below)
+#   ACME_EMAIL        contact address for ACME (placeholder default below)
+#
+# How to run Caddy:
+#   * As a container on the same Docker network as the `app` service, so the
+#     upstream `app:4310` below resolves via Docker DNS. See the override
+#     snippet in deployment/README.md ("Reverse proxy").
+#   * On the host, binding :80/:443 directly; then change the upstream to
+#     `reverse_proxy 127.0.0.1:4310`. The app port stays loopback-only.
+#
+# Never publish 4310 publicly; only this proxy is exposed.
+
+{
+	email {$ACME_EMAIL:admin@example.com}
+	# While testing DNS/ports, uncomment to avoid hitting Let's Encrypt rate
+	# limits (certificates from staging are not trusted by browsers):
+	# acme_ca https://acme-staging-v02.api.letsencrypt.org/directory
+}
+
+{$OPENDOTS_DOMAIN:dots.example.com} {
+	encode zstd gzip
+
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		X-Content-Type-Options "nosniff"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		X-Frame-Options "DENY"
+		Cross-Origin-Opener-Policy "same-origin"
+		-Server
+	}
+
+	# Streaming chat turns use SSE; never buffer the response.
+	reverse_proxy app:4310 {
+		flush_interval -1
+		transport http {
+			read_timeout 0
+			write_timeout 0
+		}
+	}
+
+	log {
+		output file /var/log/caddy/opendots.log
+		format json
+	}
+
+	# --- Edge rate limiting (OPTIONAL) ----------------------------------------
+	# The app has no per-IP rate limiting. This requires a Caddy build that
+	# includes the caddy-ratelimit module; uncomment only if yours does.
+	# rate_limit {
+	# 	zone chat {
+	# 		key {remote_host}
+	# 		events 60
+	# 		window 1m
+	# 	}
+	# }
+
+	# --- Self-hosted Slack Events API webhook (OPTIONAL; NOT YET WIRED) --------
+	# When the self-hosted Slack integration ships, Slack must reach this path
+	# over public HTTPS (SLACK_SIGNING_SECRET verifies each request). Until then
+	# no such route exists in the app, so leave this commented.
+	# handle /api/slack/events* {
+	# 	reverse_proxy app:4310
+	# }
+}

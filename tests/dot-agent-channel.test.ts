@@ -41,7 +41,7 @@ afterEach(() => {
   inner.configure.mockClear();
 });
 
-it('uses the conversation container for delivery and preserves tools and override restrictions', async () => {
+it('never hands hosted or SDK skill delivery to the inner agent while preserving tools and overrides', async () => {
   const f = fixture(false);
   const dot = f.workspace.dots()[0];
   f.workspace.updateDot(dot.id, {
@@ -70,21 +70,21 @@ it('uses the conversation container for delivery and preserves tools and overrid
   );
   expect(inner.configure).toHaveBeenLastCalledWith(
     expect.objectContaining({
-      learnedSkills: {
-        containers: [{ id: 'research' }],
-        apiKey: 'fixture',
-        apiUrl: undefined,
-      },
       type: 'tanstack',
       factory: expect.any(Function),
     }),
+  );
+  // Learned-skill delivery is local: the Postgres skills store is read before
+  // the model runs, and the SDK's own `learnedSkills` option is never passed.
+  expect(inner.configure.mock.lastCall?.[0]).not.toHaveProperty(
+    'learnedSkills',
   );
   expect(inner.run).toHaveBeenLastCalledWith(
     expect.objectContaining({ tools: [], forwardedProps: {} }),
   );
   await lastValueFrom(f.agent.run(f.input).pipe(toArray()));
   expect(inner.configure).toHaveBeenLastCalledWith(
-    expect.objectContaining({ learnedSkills: undefined, type: 'tanstack' }),
+    expect.objectContaining({ type: 'tanstack' }),
   );
   f.workspace.updateDot(dot.id, {
     ...dot,
@@ -95,7 +95,7 @@ it('uses the conversation container for delivery and preserves tools and overrid
     f.agent.run({ ...f.input, threadId: 'learning' }).pipe(toArray()),
   );
   expect(inner.configure).toHaveBeenLastCalledWith(
-    expect.objectContaining({ learnedSkills: undefined, type: 'tanstack' }),
+    expect.objectContaining({ type: 'tanstack' }),
   );
 });
 function fixture(channel = true) {
@@ -109,7 +109,6 @@ function fixture(channel = true) {
     store,
     workspace,
     {
-      intelligenceKey: 'fixture',
       apiKey: 'fixture',
       model: 'fixture',
       baseUrl: 'https://unused.invalid',
@@ -141,6 +140,32 @@ it('aborts an active turn when connected-app permission is revoked', async () =>
     const subscription = f.agent.run(f.input).subscribe();
     await vi.advanceTimersByTimeAsync(0);
     f.store.updateSettings({ appsAllowed: false });
+    await vi.advanceTimersByTimeAsync(100);
+    expect(inner.abortRun).toHaveBeenCalled();
+    subscription.unsubscribe();
+  } finally {
+    vi.useRealTimers();
+  }
+});
+
+it('aborts an active turn when local skill delivery is revoked', async () => {
+  vi.useFakeTimers();
+  try {
+    const f = fixture(false);
+    const dot = f.workspace.dots()[0];
+    f.workspace.updateDot(dot.id, {
+      ...dot,
+      learningContainerId: 'research',
+      skillDeliveryEnabled: true,
+    });
+    inner.run.mockReturnValue(new Subject<BaseEvent>());
+    const subscription = f.agent.run(f.input).subscribe();
+    await vi.advanceTimersByTimeAsync(0);
+    const current = f.workspace.dot(dot.id)!;
+    f.workspace.updateDot(dot.id, {
+      ...current,
+      skillDeliveryEnabled: false,
+    });
     await vi.advanceTimersByTimeAsync(100);
     expect(inner.abortRun).toHaveBeenCalled();
     subscription.unsubscribe();

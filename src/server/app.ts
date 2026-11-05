@@ -8,6 +8,7 @@ import { Store } from './store.js';
 import { Runner } from './runner.js';
 import { configured, type Config } from './research.js';
 import type { Platform } from './platform.js';
+import { slackRoutes } from './slack-service.js';
 import { VoiceService } from './voice.js';
 import { workspaceRoutes } from './workspace-routes.js';
 const interval = z.number().int().min(60).max(31_536_000).nullable();
@@ -35,6 +36,34 @@ export function createApp({
       onError: (c) => c.json({ error: 'Request is too large.' }, 413),
     }),
   );
+  // Registered before the origin/owner middleware below. Slack cannot present
+  // an owner token, so this route authenticates with the Slack signing secret
+  // instead: a constant-time HMAC over the raw body plus a five-minute replay
+  // window (see slack-service.ts). It is intentionally reachable without an
+  // owner token and is safe to expose because no event runs an agent unless the
+  // workspace and acting user both pass the SLACK_TEAM_ID / SLACK_USER_IDS
+  // allowlist. No Slack-supplied id is trusted before that check.
+  if (platform) app.route('/api/slack', slackRoutes(platform.slack));
+  // Probes for Docker, the reverse proxy and orchestrators. They must answer
+  // without an owner token, so they sit before the owner middleware below.
+  // Liveness reveals nothing. Readiness reports only the NAMES of missing setup
+  // items, never values or the full setup object.
+  app.get('/api/health', (c) => c.json({ ok: true }));
+  app.get('/api/ready', async (c) => {
+    if (!platform) return c.json({ ok: false, error: 'Not configured.' }, 503);
+    try {
+      await platform.ping();
+    } catch {
+      return c.json({ ok: false, error: 'Database is not reachable.' }, 503);
+    }
+    const missing = platform.setup().missing;
+    if (missing.length)
+      return c.json(
+        { ok: false, error: `Setup required: ${missing.join(', ')}.` },
+        503,
+      );
+    return c.json({ ok: true });
+  });
   app.use('/api/*', async (c, next) => {
     c.header('Cache-Control', 'no-store');
     c.header('X-Content-Type-Options', 'nosniff');

@@ -1,141 +1,98 @@
-import { expect, it, vi } from 'vitest';
-import type {
-  ChannelIdentityContext,
-  IncomingMessage,
-  Thread,
-} from '@copilotkit/channels';
-import { slackIdentity, slackHandlers } from '../src/server/slack-channel.js';
+import { afterEach, expect, it, vi } from 'vitest';
+import {
+  reportChannelFailure,
+  safeFailure,
+  slackActorId,
+  slackConversation,
+  slackOperation,
+  slackPrompt,
+  type SlackEventEnvelope,
+} from '../src/server/slack-channel.js';
 const config = { slackTeam: 'team', slackUsers: ['person'] };
-const identity: ChannelIdentityContext = {
-  provider: 'slack',
-  tenant: { id: 'team' },
-  installation: { id: 'install' },
-  actor: { id: 'person', kind: 'human' },
-  conversation: { id: 'conversation' },
-  trigger: 'message',
-  event: { id: 'event' },
-  raw: null,
-};
-const message: IncomingMessage = {
-  text: 'Help',
-  user: { id: 'owner', name: 'Owner' },
-  actor: { id: 'person', kind: 'human' },
-  ref: { id: 'message' },
-  platform: 'slack',
-  operation: {
-    kind: 'created',
-    mentioned: true,
-    logicalMessageId: 'message',
-    revisionId: '1',
+const envelope: SlackEventEnvelope = {
+  type: 'event_callback',
+  event_id: 'Ev1',
+  team_id: 'team',
+  event: {
+    type: 'app_mention',
+    user: 'person',
+    text: '<@U0BOT> Help',
+    ts: '100.1',
+    channel: 'C1',
   },
 };
-function fixture(paused = false) {
-  const thread = {
-    runAgent: vi.fn<Thread['runAgent']>(async () => undefined),
-    post: vi.fn<Thread['post']>(async () => ({ id: 'reply' })),
-    subscribe: vi.fn<Thread['subscribe']>(async () => {}),
-    isSubscribed: vi.fn<Thread['isSubscribed']>(async () => false),
-  };
-  const report = vi.fn();
-  return {
-    thread,
-    report,
-    handlers: slackHandlers({
-      config,
-      ownerId: 'owner',
-      paused: () => paused,
-      report,
-    }),
-  };
-}
-it('requires explicit Slack tenant and user allowlists for canonical owner identity', () => {
-  expect(slackIdentity(identity, config, 'owner')?.id).toBe('owner');
+it('requires an explicit Slack tenant and user allowlist for the acting human', () => {
+  expect(slackActorId(envelope, config)).toBe('person');
+  expect(slackActorId({ ...envelope, team_id: 'other' }, config)).toBeNull();
   expect(
-    slackIdentity({ ...identity, tenant: { id: 'other' } }, config, 'owner'),
-  ).toBeNull();
-  expect(
-    slackIdentity(
-      { ...identity, actor: { id: 'other', kind: 'human' } },
+    slackActorId(
+      { ...envelope, event: { ...envelope.event, user: 'other' } },
       config,
-      'owner',
     ),
   ).toBeNull();
   expect(
-    slackIdentity({ ...identity, provider: 'discord' }, config, 'owner'),
+    slackActorId(
+      { ...envelope, event: { ...envelope.event, user: undefined } },
+      config,
+    ),
   ).toBeNull();
 });
-it('answers an allowed mention once, then only subscribed follow-ups', async () => {
-  const f = fixture();
-  await f.handlers.mention({ thread: f.thread, message });
-  expect(f.thread.subscribe).toHaveBeenCalledTimes(1);
-  expect(f.thread.runAgent).toHaveBeenCalledTimes(1);
-  await f.handlers.message({ thread: f.thread, message });
-  expect(f.thread.runAgent).toHaveBeenCalledTimes(1);
-  f.thread.isSubscribed.mockResolvedValue(true);
-  await f.handlers.message({ thread: f.thread, message });
-  expect(f.thread.runAgent).toHaveBeenCalledTimes(2);
+it('ignores nonhuman actors and the app’s own bot user without side effects', () => {
+  for (const patch of [
+    { bot_id: 'B1' },
+    { subtype: 'bot_message' },
+    { user: 'BOTUSER' },
+  ] as const)
+    expect(
+      slackActorId(
+        { ...envelope, event: { ...envelope.event, ...patch } },
+        config,
+        'BOTUSER',
+      ),
+    ).toBeNull();
 });
-it('ignores nonhuman actors and changed/deleted messages without side effects', async () => {
-  const f = fixture();
-  for (const kind of ['bot', 'app', 'system', 'unknown'] as const)
-    await f.handlers.mention({
-      thread: f.thread,
-      message: { ...message, actor: { ...message.actor, kind } },
-    });
-  for (const kind of ['updated', 'deleted'] as const)
-    await f.handlers.mention({
-      thread: f.thread,
-      message: { ...message, operation: { ...message.operation!, kind } },
-    });
-  await f.handlers.mention({
-    thread: f.thread,
-    message: { ...message, user: null },
+it('defaults an absent operation to created and rejects edits and deletions', () => {
+  const event = envelope.event!;
+  expect(slackOperation(event)).toBe('created');
+  expect(slackOperation({ ...event, subtype: 'thread_broadcast' })).toBe(
+    'created',
+  );
+  expect(slackOperation({ ...event, subtype: 'message_changed' })).toBe(
+    'updated',
+  );
+  expect(slackOperation({ ...event, edited: { user: 'person' } })).toBe(
+    'updated',
+  );
+  expect(slackOperation({ ...event, subtype: 'message_deleted' })).toBe(
+    'deleted',
+  );
+});
+it('keys a conversation by the Slack thread and strips the bot mention', () => {
+  expect(slackConversation(envelope.event!)).toEqual({
+    channel: 'C1',
+    threadTs: '100.1',
   });
-  expect(f.thread.runAgent).not.toHaveBeenCalled();
-  expect(f.thread.subscribe).not.toHaveBeenCalled();
-  expect(f.thread.post).not.toHaveBeenCalled();
-});
-it('defaults an absent operation to created and reports pause without subscribing or running', async () => {
-  const f = fixture(true);
-  await f.handlers.mention({
-    thread: f.thread,
-    message: { ...message, operation: undefined },
+  expect(slackConversation({ ...envelope.event!, thread_ts: '99.0' })).toEqual({
+    channel: 'C1',
+    threadTs: '99.0',
   });
-  expect(f.thread.post).toHaveBeenCalledWith(expect.stringMatching(/paused/i));
-  expect(f.thread.subscribe).not.toHaveBeenCalled();
-  expect(f.thread.runAgent).not.toHaveBeenCalled();
+  expect(slackConversation({ type: 'app_mention' })).toBeNull();
+  expect(slackPrompt(envelope.event!)).toBe('Help');
 });
-it('isolates a failed run after a safe reply and surfaces both failures if posting also fails', async () => {
-  const f = fixture();
-  f.thread.runAgent.mockRejectedValue(new Error('SECRET provider details'));
-  await f.handlers.mention({ thread: f.thread, message });
-  expect(f.thread.runAgent).toHaveBeenCalledTimes(1);
-  expect(f.thread.post.mock.calls[0][0]).not.toContain('SECRET');
-  expect(f.report).toHaveBeenCalled();
-  f.thread.post.mockRejectedValue(new Error('SECRET reply details'));
-  await expect(
-    f.handlers.mention({ thread: f.thread, message }),
-  ).rejects.toBeInstanceOf(AggregateError);
-  expect(JSON.stringify(f.report.mock.calls)).not.toContain('SECRET');
+it('sanitises provider failures and never echoes provider text', () => {
+  expect(safeFailure(new Error('SECRET provider details'))).toBe('Error');
+  expect(safeFailure(new TypeError('SECRET'))).toBe('TypeError');
+  expect(safeFailure(Object.assign(new Error('SECRET'), { status: 429 }))).toBe(
+    'Error (HTTP 429)',
+  );
+  expect(safeFailure(Object.assign(new Error('SECRET'), { status: 99 }))).toBe(
+    'Error',
+  );
+  expect(safeFailure('SECRET')).toBe('Error');
 });
-it('still answers mentions when subscribing fails, but never runs on unreadable subscription state', async () => {
-  const f = fixture();
-  f.thread.subscribe.mockRejectedValue(new Error('Failure'));
-  await f.handlers.mention({ thread: f.thread, message });
-  expect(f.thread.runAgent).toHaveBeenCalledTimes(1);
-  f.thread.isSubscribed.mockRejectedValue(new Error('Failure'));
-  await expect(
-    f.handlers.message({ thread: f.thread, message }),
-  ).rejects.toThrow();
-  expect(f.thread.runAgent).toHaveBeenCalledTimes(1);
+it('reports channel failures through console.error without secrets', () => {
+  const spy = vi.spyOn(console, 'error').mockImplementation(() => {});
+  reportChannelFailure('Slack notice failed', ['Error']);
+  expect(spy).toHaveBeenCalledWith('Slack notice failed: Error');
 });
-it('surfaces a failed pause notice safely and never runs or subscribes', async () => {
-  const f = fixture(true);
-  f.thread.post.mockRejectedValue(new Error('SECRET token'));
-  await expect(
-    f.handlers.mention({ thread: f.thread, message }),
-  ).rejects.toThrow('Slack notice failed: Error');
-  expect(f.thread.runAgent).not.toHaveBeenCalled();
-  expect(f.thread.subscribe).not.toHaveBeenCalled();
-  expect(JSON.stringify(f.report.mock.calls)).not.toContain('SECRET');
-});
+afterEach(() => vi.restoreAllMocks());

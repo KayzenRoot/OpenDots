@@ -110,6 +110,9 @@ export class VoiceService {
           tool_choice: 'auto',
         }),
       );
+      // LIMITATION (WORK-007): voice is pinned to OpenAI Realtime. Chat is
+      // provider-agnostic via OPENAI_BASE_URL, but this endpoint is not
+      // configurable yet, so voice requires an OpenAI key even when chat does not.
       const response = await this.transport(
         'https://api.openai.com/v1/realtime/calls',
         {
@@ -228,7 +231,7 @@ export class VoiceService {
     if (this.platform.store.settings().paused) {
       this.platform.workspace.setCallError(
         id,
-        'Transcript saved locally; pending Intelligence sync until workspace resumes.',
+        'Transcript saved locally; pending conversation sync until workspace resumes.',
       );
       return;
     }
@@ -242,13 +245,13 @@ export class VoiceService {
     } catch {
       this.platform.workspace.setCallError(
         id,
-        'Call ended; its local receipt is saved, but Intelligence transcript sync failed.',
+        'Call ended; its local receipt is saved, but conversation transcript sync failed.',
       );
     }
   }
   async resumePending() {
     for (const call of this.platform.workspace.calls())
-      if (call.error?.includes('pending Intelligence sync')) {
+      if (call.error?.includes('pending conversation sync')) {
         this.platform.workspace.setCallError(call.id, null);
         await this.syncReceipt(call.id, call.transcript);
       }

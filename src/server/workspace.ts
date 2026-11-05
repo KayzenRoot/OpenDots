@@ -25,6 +25,10 @@ export class WorkspaceStore {
       CREATE TABLE IF NOT EXISTS task_threads(taskId TEXT PRIMARY KEY, threadId TEXT NOT NULL);
       CREATE TABLE IF NOT EXISTS calls(id TEXT PRIMARY KEY, threadId TEXT NOT NULL, startedAt INTEGER NOT NULL, endedAt INTEGER, status TEXT NOT NULL, transcript TEXT NOT NULL, error TEXT);
       CREATE TABLE IF NOT EXISTS captures(threadId TEXT PRIMARY KEY, value TEXT NOT NULL);`);
+    // `learningContainerId` is a legacy hosted-Intelligence identifier. It is
+    // retained so existing data keeps meaning, but it is now display-only: local
+    // skills are keyed by Dot id in the Postgres `skills` table, and delivery is
+    // gated solely by `skillDeliveryEnabled`. Never treat it as a hosted id.
     for (const [table, column, definition] of [
       ['dots', 'learningContainerId', 'TEXT'],
       ['dots', 'skillDeliveryEnabled', 'INTEGER NOT NULL DEFAULT 0'],
@@ -269,6 +273,8 @@ export class WorkspaceStore {
   bindThread(id: string, dotId: string, title: string): Conversation {
     const dot = this.dot(dotId);
     if (!dot) throw new Error('Dot not found.');
+    // The frozen `learningContainerId` is a legacy display value copied from the
+    // Dot for continuity; it no longer drives delivery (skills are Dot-scoped).
     const value: Conversation = {
       id,
       dotId,

@@ -1,29 +1,8 @@
 import type { WebConfig } from './parallel.js';
 import type { SetupStatus } from '../shared/types.js';
 
-// `copilotkit project select` writes the CLI name and deletes the template name.
-const INTELLIGENCE_API_KEY_ENV_NAMES = [
-  'CPK_INTELLIGENCE_API_KEY',
-  'INTELLIGENCE_API_KEY',
-] as const;
-export const INTELLIGENCE_KEY_MISSING_LABEL = `${INTELLIGENCE_API_KEY_ENV_NAMES[1]} (or ${INTELLIGENCE_API_KEY_ENV_NAMES[0]})`;
 export const DEFAULT_AGENT_RUN_TIMEOUT_MS = 90_000;
 const MAX_TIMER_DELAY_MS = 2_147_483_647;
-
-export function intelligenceApiKeyFromEnv(
-  env: Record<string, string | undefined>,
-): string | undefined {
-  return firstNonEmptyEnvValue(env, INTELLIGENCE_API_KEY_ENV_NAMES);
-}
-
-export function intelligenceWsUrlFromEnv(
-  env: Record<string, string | undefined>,
-): string | undefined {
-  return firstNonEmptyEnvValue(env, [
-    'INTELLIGENCE_GATEWAY_WS_URL',
-    'INTELLIGENCE_WS_URL',
-  ]);
-}
 
 export function agentRunTimeoutMsFromEnv(
   env: Record<string, string | undefined>,
@@ -38,21 +17,49 @@ export function agentRunTimeoutMsFromEnv(
   return value;
 }
 
-function firstNonEmptyEnvValue(
+/**
+ * Parse `OPENAI_EXTRA_HEADERS` (JSON object of string values). Header names are
+ * restricted to the RFC 7230 token characters and values may not contain
+ * newlines, so a value cannot smuggle a second header or request line.
+ */
+export function extraHeadersFromEnv(
   env: Record<string, string | undefined>,
-  names: readonly string[],
-): string | undefined {
-  for (const name of names) {
-    const value = env[name]?.trim();
-    if (value) return value;
+): Record<string, string> | undefined {
+  const raw = env.OPENAI_EXTRA_HEADERS?.trim();
+  if (!raw) return undefined;
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    throw new Error('OPENAI_EXTRA_HEADERS must be valid JSON.');
   }
-  return undefined;
+  if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed))
+    throw new Error(
+      'OPENAI_EXTRA_HEADERS must be a JSON object of string values.',
+    );
+  const headers: Record<string, string> = {};
+  for (const [name, value] of Object.entries(
+    parsed as Record<string, unknown>,
+  )) {
+    if (!/^[A-Za-z0-9-]+$/.test(name))
+      throw new Error(
+        `OPENAI_EXTRA_HEADERS has an invalid header name: "${name}".`,
+      );
+    if (typeof value !== 'string')
+      throw new Error(
+        `OPENAI_EXTRA_HEADERS value for "${name}" must be a string.`,
+      );
+    if (/[\r\n]/.test(value))
+      throw new Error(
+        `OPENAI_EXTRA_HEADERS value for "${name}" must not contain newlines.`,
+      );
+    headers[name] = value;
+  }
+  return Object.keys(headers).length ? headers : undefined;
 }
 
 export interface PlatformConfig extends WebConfig {
-  intelligenceKey?: string;
-  intelligenceApiUrl?: string;
-  intelligenceWsUrl?: string;
+  databaseUrl?: string;
   model?: string;
   apiKey?: string;
   baseUrl: string;
@@ -71,16 +78,26 @@ export interface PlatformConfig extends WebConfig {
   slackTeam?: string;
   slackUsers: string[];
   slackDotId?: string;
+  /** `SLACK_BOT_TOKEN`: outbound Web API calls. */
+  slackBotToken?: string;
+  /** `SLACK_SIGNING_SECRET`: inbound Events API request verification. */
+  slackSigningSecret?: string;
   runtimeUrl: string;
   ownerToken?: string;
+  /**
+   * Extra headers sent to the model endpoint (`OPENAI_EXTRA_HEADERS`, JSON).
+   * Some OpenAI-compatible gateways require routing headers, e.g. OpenCode Go
+   * requires `x-opencode-session` on /chat/completions.
+   */
+  extraHeaders?: Record<string, string>;
 }
 export function setupStatus(
   config: PlatformConfig,
   slack = 'not_configured',
   activationFailed = false,
+  conversationsConfigured = !!config.databaseUrl,
 ): SetupStatus {
   const missing = [
-    !config.intelligenceKey && INTELLIGENCE_KEY_MISSING_LABEL,
     !config.apiKey && 'OPENAI_API_KEY',
     !config.model && 'OPENAI_MODEL',
   ].filter((item): item is string => !!item);
@@ -97,7 +114,8 @@ export function setupStatus(
       ? 'setup_required'
       : 'not_configured';
   return {
-    intelligence: !!config.intelligenceKey,
+    // Conversation storage is the successor to the hosted Intelligence service.
+    intelligence: conversationsConfigured,
     model: !!(config.apiKey && config.model),
     browser: !!(config.browserUrl && config.browserSecret),
     voice: !!(config.voiceKey && config.voiceModel && !missing.length),

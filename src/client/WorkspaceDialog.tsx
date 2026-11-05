@@ -351,9 +351,9 @@ export function WorkspaceDialog({
           )}
           {dialog.type === 'dot' && (
             <fieldset className="space-access-fields">
-              <legend>Automatic Learning</legend>
+              <legend>Local skills</legend>
               <label className="field-label" htmlFor="learning-container">
-                Learning container ID
+                Skill set ID (optional)
               </label>
               <input
                 id="learning-container"
@@ -368,10 +368,10 @@ export function WorkspaceDialog({
                 }}
               />
               <p className="muted" id="learning-help">
-                Create this container in your Intelligence project first. New
-                conversations will contribute evidence to it. Leave blank to
-                keep new conversations out of Learning. Existing conversations
-                retain their original assignment.
+                Skills live in this workspace’s local database, keyed by Dot,
+                and are never sent to a hosted service. Leave blank to keep this
+                Dot out of skill delivery. This panel only controls delivery;
+                there is no skill editor here yet.
               </p>
               <label className="permission-row">
                 <input
@@ -381,22 +381,13 @@ export function WorkspaceDialog({
                   onChange={(event) => setSkillDelivery(event.target.checked)}
                 />
                 <span>
-                  <strong>Use published skills</strong>
+                  <strong>Deliver local skills</strong>
                   <small>
-                    Load reviewed skills from each conversation’s assigned
-                    container. Enable delivery in Intelligence too. Turning this
-                    off stops skill loading; it does not stop evidence
-                    collection.
+                    Expose this Dot’s enabled local skills at the start of each
+                    turn. Turning this off stops skill loading immediately.
                   </small>
                 </span>
               </label>
-              <a
-                href="https://docs.copilotkit.ai/learning"
-                target="_blank"
-                rel="noreferrer"
-              >
-                Set up Learning and review skills ↗
-              </a>
             </fieldset>
           )}
           {dialog.type === 'dot' && dialog.dot && (

@@ -1,39 +1,47 @@
 import { ComputerService } from './computer-service.js';
 import { ConnectionService } from './connections.js';
-import { PageService } from './page-service.js';
+import { PageService, type PageConversations } from './page-service.js';
 import { randomUUID } from 'node:crypto';
 import {
-  CopilotKitIntelligence,
   CopilotRuntime,
   createCopilotHonoHandler,
   type CopilotHonoApp,
 } from '@copilotkit/runtime/v2';
-import { createSlackChannel } from './slack-channel.js';
-export { slackIdentity } from './slack-channel.js';
+import { PostgresAgentRunner } from './agent-runner.js';
+import type { ConversationStorage } from './conversation-store.js';
+import type { SkillSource } from './learning.js';
 import { Store } from './store.js';
 import { WorkspaceStore } from './workspace.js';
 import { DotAgent } from './dot-agent.js';
 import { runThreadTurn } from './headless.js';
-import {
-  INTELLIGENCE_KEY_MISSING_LABEL,
-  setupStatus,
-  type PlatformConfig,
-} from './platform-config.js';
+import { setupStatus, type PlatformConfig } from './platform-config.js';
 import { validateRuntimeScope } from './runtime-scope.js';
-import { learningSelector } from './learning.js';
 import { SetupTelemetry } from './setup-telemetry.js';
+import { SlackService } from './slack-service.js';
+import { SlackStore } from './slack-store.js';
+
 export class Platform {
-  private channelStartupFailed = false;
   readonly setupTelemetry: SetupTelemetry;
   readonly pages: PageService;
   readonly computers: ComputerService;
   readonly connections: ConnectionService;
-  readonly intelligence?: CopilotKitIntelligence;
+  readonly conversations?: ConversationStorage;
+  /** Readiness probe: rejects unless conversation storage is configured and answers. */
+  async ping(): Promise<void> {
+    if (!this.conversations) throw new Error('Conversation storage is absent.');
+    await this.conversations.ping();
+  }
+  readonly runner?: PostgresAgentRunner;
   readonly handler?: CopilotHonoApp;
+  readonly slack: SlackService;
+  readonly learning?: SkillSource;
   constructor(
     readonly store: Store,
     readonly workspace: WorkspaceStore,
     readonly config: PlatformConfig,
+    conversations?: ConversationStorage,
+    slackEvents?: SlackStore,
+    learning?: SkillSource,
   ) {
     this.setupTelemetry = new SetupTelemetry(store);
     this.computers = new ComputerService(
@@ -42,50 +50,23 @@ export class Platform {
       () => store.settings().paused,
     );
     this.connections = new ConnectionService(workspace.connections);
-    this.pages = new PageService(workspace, () => {
-      this.requireReady();
-      return this.intelligence!;
+    this.conversations = conversations;
+    this.learning = learning;
+    this.pages = new PageService(workspace, () => this.pageConversations());
+    this.slack = new SlackService({
+      config,
+      workspace,
+      events: slackEvents ?? new SlackStore(':memory:'),
+      paused: () => store.settings().paused,
+      turn: (threadId, prompt, signal, metadata) =>
+        this.turn(threadId, prompt, signal, metadata),
     });
-    if (!config.intelligenceKey) return;
-    this.intelligence = new CopilotKitIntelligence({
-      apiKey: config.intelligenceKey,
-      apiUrl: config.intelligenceApiUrl,
-      wsUrl: config.intelligenceWsUrl,
-      getLearningContainerId: learningSelector(
-        workspace,
-        config.slackDotId ?? workspace.dots()[0]?.id,
-      ),
+    if (!conversations) return;
+    const runner = new PostgresAgentRunner(conversations, {
+      ownerId: workspace.ownerId,
     });
-    const channels = [];
-    if (config.slackChannel && config.slackTeam && config.slackUsers.length) {
-      const dotId = config.slackDotId ?? workspace.dots()[0].id;
-      if (!workspace.dot(dotId))
-        throw new Error('SLACK_DOT_ID does not identify an existing Dot.');
-      const slack = createSlackChannel({
-        name: config.slackChannel,
-        config,
-        ownerId: workspace.ownerId,
-        paused: () => store.settings().paused,
-        agent: () =>
-          new DotAgent(
-            store,
-            workspace,
-            config,
-            dotId,
-            true,
-            this.setupTelemetry,
-          ),
-      });
-      channels.push(slack);
-    }
+    this.runner = runner;
     const runtime = new CopilotRuntime({
-      intelligence: this.intelligence,
-      telemetryId: this.setupTelemetry.identity,
-      telemetryProperties: this.setupTelemetry.metadata,
-      identifyUser: async () => ({
-        id: workspace.ownerId,
-        name: 'OpenDots owner',
-      }),
       agents: async () =>
         Object.fromEntries(
           workspace
@@ -99,11 +80,12 @@ export class Platform {
                 dot.id,
                 false,
                 this.setupTelemetry,
+                this.learning,
               ),
             ]),
         ),
-      channels,
-      generateThreadNames: true,
+      runner,
+      licenseToken: undefined,
     });
     this.handler = createCopilotHonoHandler({
       runtime,
@@ -111,68 +93,83 @@ export class Platform {
       cors: { origin: [] },
     });
   }
+  private pageConversations(): PageConversations {
+    const conversations = this.conversations;
+    if (!conversations)
+      throw new Error('Conversation storage is not configured.');
+    return {
+      getOrCreateThread: (input) =>
+        conversations.getOrCreateThread({
+          id: input.threadId,
+          dotId: input.agentId,
+          ownerId: input.userId,
+          title: input.name,
+        }),
+      getThreadMessages: async ({ threadId }) => ({
+        messages: await conversations.getMessages(threadId),
+      }),
+    };
+  }
   setup() {
     return setupStatus(
       this.config,
-      this.handler?.channels?.status().overall ??
-        (this.config.slackChannel ? 'setup_required' : 'not_configured'),
-      this.channelStartupFailed,
+      this.slack.status(),
+      this.slack.activationFailed(),
+      !!this.conversations,
     );
   }
   requireReady() {
     const missing = this.setup().missing;
     if (missing.length)
       throw new Error(
-        `Setup required: ${missing.join(', ')}. Conversations require CopilotKit Intelligence.`,
+        `Setup required: ${missing.join(', ')}. Conversations require the model configuration.`,
       );
   }
   async start() {
     this.setupTelemetry.start();
-    if (this.handler?.channels) {
-      try {
-        await this.handler.channels.ready({ timeoutMs: 15000 });
-        this.channelStartupFailed = false;
-      } catch (error) {
-        this.channelStartupFailed = true;
-        this.setupTelemetry.capture({
-          kind: 'setup_failed',
-          step: 'settings',
-          error_class: 'channel_start_failed',
-        });
-        throw error;
-      }
+    // Activation is a no-op without Slack env, so the app starts normally.
+    try {
+      await this.slack.start();
+    } catch (error) {
+      this.setupTelemetry.capture({
+        kind: 'setup_failed',
+        step: 'settings',
+        error_class: 'channel_start_failed',
+      });
+      throw error;
     }
   }
   async stop() {
     await this.setupTelemetry.stop();
-    await this.handler?.channels?.stop();
+    this.slack.stop();
   }
   async createConversation(dotId: string, title: string) {
     this.requireReady();
     if (!this.workspace.dot(dotId)) throw new Error('Dot not found.');
+    if (!this.conversations)
+      throw new Error('Conversation storage is not configured.');
     const id = randomUUID();
     try {
-      await this.intelligence!.createThread({
-        threadId: id,
-        userId: this.workspace.ownerId,
-        agentId: dotId,
-        name: title,
+      await this.conversations.createThread({
+        id,
+        dotId,
+        ownerId: this.workspace.ownerId,
+        title,
       });
     } catch {
       throw new Error(
-        'Intelligence could not create this conversation. Check the runtime key and connection.',
+        'Conversation storage could not create this conversation. Check the database connection and retry.',
       );
     }
+    await this.runner?.refreshThreadCache().catch(() => {});
     return this.workspace.bindThread(id, dotId, title);
   }
   async history(threadId: string): Promise<string> {
     this.requireReady();
     this.workspace.requireThread(threadId);
-    const history = await this.intelligence!.getThreadMessages({
-      threadId,
-      userId: this.workspace.ownerId,
-    });
-    return history.messages
+    if (!this.conversations) return '';
+    const messages = await this.conversations.getMessages(threadId);
+    return messages
       .filter((message) => ['user', 'assistant'].includes(message.role))
       .slice(-12)
       .map(
@@ -185,7 +182,7 @@ export class Platform {
   async handle(request: Request): Promise<Response> {
     if (!this.handler)
       return Response.json(
-        { error: `Setup required: ${INTELLIGENCE_KEY_MISSING_LABEL}.` },
+        { error: 'Conversation storage is not configured.' },
         { status: 503 },
       );
     let body: unknown;

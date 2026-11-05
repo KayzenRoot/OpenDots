@@ -1,5 +1,10 @@
 import { z } from 'zod';
 
+/**
+ * Reinterpreted for local delivery: this is no longer a hosted Intelligence
+ * container id but a legacy, display-only label for a Dot's skill set. Skills
+ * themselves live in the local Postgres `skills` table, keyed by Dot id.
+ */
 export const learningContainerIdSchema = z
   .string()
   .max(64)
@@ -15,8 +20,8 @@ export function validateLearningSettings(
 ) {
   if (!learningContainerIdSchema.safeParse(containerId).success)
     throw new Error(
-      'Dot Learning container ID must use 1–64 lowercase letters, numbers, and single hyphens.',
+      'Skill set ID must use 1–64 lowercase letters, numbers, and single hyphens.',
     );
   if (delivery && !containerId)
-    throw new Error('Dot skill delivery requires a Learning container.');
+    throw new Error('Dot skill delivery requires a local skill set ID.');
 }

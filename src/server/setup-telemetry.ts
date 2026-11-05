@@ -81,13 +81,17 @@ const names: Record<SetupEvent['kind'], string> = {
 type Diagnostic =
   'delivery_failed' | 'storage_failed' | 'invalid_state' | 'invalid_event';
 type Send = (identity: string, body: Record<string, unknown>) => Promise<void>;
+/**
+ * No CopilotKit-hosted sink is contacted. Events are only forwarded when a
+ * self-hosted endpoint is explicitly configured via SETUP_TELEMETRY_ENDPOINT;
+ * otherwise they stay in the local bounded queue and nothing leaves the host.
+ */
 const productionSend: Send = async (identity, body) => {
-  const response = await fetch('https://telemetry.copilotkit.ai/ingest', {
+  const endpoint = process.env.SETUP_TELEMETRY_ENDPOINT?.trim();
+  if (!endpoint) return;
+  const response = await fetch(endpoint, {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'X-CopilotKit-Telemetry-Id': identity,
-    },
+    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
     signal: AbortSignal.timeout(1500),
   });
@@ -99,10 +103,13 @@ export class SetupTelemetry {
   private state?: State;
   private pending?: Promise<void>;
   private timer?: ReturnType<typeof setInterval>;
+  private readonly send: Send;
+  /** Nothing is delivered unless a sink (custom or self-hosted) is configured. */
+  private readonly deliverable: boolean;
   constructor(
     private store: Store,
     private env: NodeJS.ProcessEnv = process.env,
-    private send: Send = productionSend,
+    send?: Send,
     private report: (diagnostic: Diagnostic) => void = (diagnostic) =>
       console.error({
         error: diagnostic,
@@ -110,6 +117,9 @@ export class SetupTelemetry {
         timestamp: new Date().toISOString(),
       }),
   ) {
+    this.send = send ?? productionSend;
+    this.deliverable =
+      send !== undefined || !!this.env.SETUP_TELEMETRY_ENDPOINT?.trim();
     if (!this.enabled()) return;
     try {
       const saved = this.store.setupTelemetryState();
@@ -126,10 +136,7 @@ export class SetupTelemetry {
             activated: false,
             queue: [],
           };
-      // The CLI identity remains authoritative, including queued events on replay.
-      this.state.identity = this.env.CPK_TELEMETRY_ID?.trim()
-        ? this.env.CPK_TELEMETRY_ID
-        : this.state.installationId;
+      this.state.identity = this.state.installationId;
       if (this.state.lastStep && !this.state.activated) {
         const last = this.state.lastStep;
         this.capture({ kind: 'setup_abandoned', step: last });
@@ -149,10 +156,7 @@ export class SetupTelemetry {
     };
   }
   private enabled() {
-    const off =
-      ['DO_NOT_TRACK', 'COPILOTKIT_TELEMETRY_DISABLED'].some((key) =>
-        ['true', '1'].includes(this.env[key] ?? ''),
-      ) || this.env.COPILOTKIT_TELEMETRY_SAMPLE_RATE === '0';
+    const off = ['true', '1'].includes(this.env.DO_NOT_TRACK ?? '');
     if (off) {
       this.state = undefined;
       try {
@@ -200,7 +204,7 @@ export class SetupTelemetry {
     this.persist();
   }
   start() {
-    if (this.timer || !this.enabled()) return;
+    if (this.timer || !this.enabled() || !this.deliverable) return;
     // Delivery is independent of setup; flush reports failures with closed diagnostics.
     void this.flush();
     this.timer = setInterval(() => void this.flush(), 15000);
@@ -214,6 +218,8 @@ export class SetupTelemetry {
     await this.flush();
   }
   flush(): Promise<void> {
+    // Without a configured sink the queue is local-only; keep it intact.
+    if (!this.deliverable) return Promise.resolve();
     return (this.pending ??= this.deliver()
       .catch(() => this.report('delivery_failed'))
       .finally(() => {

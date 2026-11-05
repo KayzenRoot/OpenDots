@@ -1,35 +1,48 @@
+# OpenDots (decoupled fork) — production Compose stack.
+#
+# No CopilotKit credentials are used anywhere in this stack: conversations live
+# in the bundled `postgres` service and the app talks only to the model endpoint
+# you configure. Nothing here contacts a CopilotKit host.
+#
+# Secrets have no defaults: `${VAR:?message}` makes `docker compose up` fail
+# fast when a required value is missing, rather than starting with a weak one.
 services:
   app:
     build:
       context: .
       target: app
+    # Loopback-only publish. Front it with the reverse proxy in deployment/
+    # (deployment/Caddyfile or deployment/nginx.conf.example). Never publish
+    # 4310 on a public interface.
     ports:
       - '127.0.0.1:4310:4310'
     environment:
       OWNER_TOKEN: ${OWNER_TOKEN:?Set a 24+ character OWNER_TOKEN in .env}
       APP_ORIGIN: ${APP_ORIGIN:-http://localhost:4310}
       OWNER_ID: ${OWNER_ID:-opendots-owner}
-      INTELLIGENCE_API_KEY: ${INTELLIGENCE_API_KEY:-}
-      CPK_INTELLIGENCE_API_KEY: ${CPK_INTELLIGENCE_API_KEY:-}
-      CPK_TELEMETRY_ID: ${CPK_TELEMETRY_ID:-}
-      INTELLIGENCE_API_URL: ${INTELLIGENCE_API_URL:-}
-      INTELLIGENCE_GATEWAY_WS_URL: ${INTELLIGENCE_GATEWAY_WS_URL:-}
-      INTELLIGENCE_WS_URL: ${INTELLIGENCE_WS_URL:-}
-      DO_NOT_TRACK: ${DO_NOT_TRACK:-0}
-      COPILOTKIT_TELEMETRY_SAMPLE_RATE: ${COPILOTKIT_TELEMETRY_SAMPLE_RATE:-1}
-      COPILOTKIT_TELEMETRY_DISABLED: ${COPILOTKIT_TELEMETRY_DISABLED:-false}
+      # SQLite: non-conversation state (dots, spaces, pages, tasks, ...).
+      DATABASE_PATH: /data/opendots.sqlite
+      # Postgres: conversations (REQUIRED). Replaces the CopilotKit service.
+      DATABASE_URL: ${DATABASE_URL:?Set DATABASE_URL in .env, e.g. postgres://opendots:<password>@postgres:5432/opendots}
+      # Optional setup telemetry. Unset (default) => nothing leaves the host.
+      SETUP_TELEMETRY_ENDPOINT: ${SETUP_TELEMETRY_ENDPOINT:-}
       VOICE_API_KEY: ${VOICE_API_KEY:-}
       VOICE_MODEL: ${VOICE_MODEL:-}
       VOICE_NAME: ${VOICE_NAME:-marin}
       COMPOSIO_API_KEY: ${COMPOSIO_API_KEY:-}
+      # Slack: the managed vars are still accepted; SLACK_BOT_TOKEN and
+      # SLACK_SIGNING_SECRET are OPTIONAL and NOT YET WIRED in this build.
       SLACK_CHANNEL_NAME: ${SLACK_CHANNEL_NAME:-}
       SLACK_TEAM_ID: ${SLACK_TEAM_ID:-}
       SLACK_USER_IDS: ${SLACK_USER_IDS:-}
       SLACK_DOT_ID: ${SLACK_DOT_ID:-}
+      SLACK_BOT_TOKEN: ${SLACK_BOT_TOKEN:-}
+      SLACK_SIGNING_SECRET: ${SLACK_SIGNING_SECRET:-}
       AGENT_RUN_TIMEOUT_MS: ${AGENT_RUN_TIMEOUT_MS:-90000}
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
       OPENAI_BASE_URL: ${OPENAI_BASE_URL:-https://api.openai.com/v1}
       OPENAI_MODEL: ${OPENAI_MODEL:-}
+      OPENAI_EXTRA_HEADERS: ${OPENAI_EXTRA_HEADERS:-}
       WEB_SEARCH_PROVIDER: ${WEB_SEARCH_PROVIDER:-parallel}
       PARALLEL_API_KEY: ${PARALLEL_API_KEY:-}
       BROWSER_URL: http://browser:4311
@@ -37,6 +50,7 @@ services:
     volumes:
       - opendots-data:/data
     networks:
+      - conversations
       - browser-link
       - app-egress
     init: true
@@ -45,6 +59,57 @@ services:
       - no-new-privileges:true
     cap_drop:
       - ALL
+    depends_on:
+      postgres:
+        condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          # Recommended minimum for the core stack. Raise if you run many
+          # concurrent agent turns.
+          cpus: '1.0'
+          memory: 1g
+
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:?Set POSTGRES_USER in .env}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
+      POSTGRES_DB: ${POSTGRES_DB:?Set POSTGRES_DB in .env}
+    volumes:
+      - opendots-pgdata:/var/lib/postgresql/data
+    networks:
+      - conversations
+    # No `ports:` on purpose: Postgres is reachable only on the internal
+    # `conversations` network, never from the host or the internet.
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    # The official image entrypoint must chown the data directory and drop from
+    # root to the `postgres` user. These are the minimum capabilities for that;
+    # everything else stays dropped.
+    cap_add:
+      - CHOWN
+      - DAC_OVERRIDE
+      - FOWNER
+      - SETGID
+      - SETUID
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U "$$POSTGRES_USER" -d "$$POSTGRES_DB"']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    deploy:
+      resources:
+        limits:
+          # Recommended minimum. Conversations grow with use; thread_events is
+          # the fast-growing table.
+          cpus: '1.0'
+          memory: 1g
+
   browser:
     profiles: [browser]
     build:
@@ -68,7 +133,11 @@ services:
 networks:
   browser-link:
     internal: true
+  # App -> Postgres only. `internal: true` means no route off the host.
+  conversations:
+    internal: true
   app-egress:
   browser-egress:
 volumes:
   opendots-data:
+  opendots-pgdata:

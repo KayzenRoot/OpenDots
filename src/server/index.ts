@@ -9,12 +9,21 @@ import { createApp } from './app.js';
 import { resolveAppOrigins } from './app-origin.js';
 import { WorkspaceStore } from './workspace.js';
 import { Platform } from './platform.js';
+import { ConversationStore } from './conversation-store.js';
+import { LearningStore } from './learning-store.js';
+import { SlackStore } from './slack-store.js';
+import { createPool, migrate } from './pg.js';
 import {
   agentRunTimeoutMsFromEnv,
-  intelligenceApiKeyFromEnv,
-  intelligenceWsUrlFromEnv,
+  extraHeadersFromEnv,
   type PlatformConfig,
 } from './platform-config.js';
+// This fork sends nothing to CopilotKit. The MIT runtime and client packages
+// carry an opt-out telemetry path that defaults to posting to
+// telemetry.copilotkit.ai; disabling it here is effective because Node reads
+// process.env at run time. Must be set before any runtime is constructed.
+process.env.COPILOTKIT_TELEMETRY_DISABLED = 'true';
+process.env.DO_NOT_TRACK = '1';
 const host = process.env.HOST ?? '127.0.0.1';
 const port = Number(process.env.PORT ?? 4310);
 const ownerToken = process.env.OWNER_TOKEN;
@@ -25,6 +34,13 @@ if (
   throw new Error(
     'External binding requires an OWNER_TOKEN of at least 24 characters.',
   );
+const databaseUrl = process.env.DATABASE_URL?.trim();
+if (!databaseUrl) {
+  console.error(
+    'DATABASE_URL is not set. Conversation storage requires PostgreSQL; stopping.',
+  );
+  process.exit(1);
+}
 const database = process.env.DATABASE_PATH ?? 'data/opendots.sqlite';
 const store = new Store(database);
 const workspace = new WorkspaceStore(
@@ -32,12 +48,11 @@ const workspace = new WorkspaceStore(
   process.env.OWNER_ID ?? 'opendots-owner',
 );
 const config: PlatformConfig = {
-  intelligenceKey: intelligenceApiKeyFromEnv(process.env),
-  intelligenceApiUrl: process.env.INTELLIGENCE_API_URL || undefined,
-  intelligenceWsUrl: intelligenceWsUrlFromEnv(process.env),
+  databaseUrl,
   apiKey: process.env.OPENAI_API_KEY,
   model: process.env.OPENAI_MODEL,
   baseUrl: process.env.OPENAI_BASE_URL ?? 'https://api.openai.com/v1',
+  extraHeaders: extraHeadersFromEnv(process.env),
   agentRunTimeoutMs: agentRunTimeoutMsFromEnv(process.env),
   webSearchProvider: webSearchProvider(process.env.WEB_SEARCH_PROVIDER),
   parallelApiKey: process.env.PARALLEL_API_KEY,
@@ -58,10 +73,43 @@ const config: PlatformConfig = {
     .map((value) => value.trim())
     .filter(Boolean),
   slackDotId: process.env.SLACK_DOT_ID || undefined,
+  slackBotToken: process.env.SLACK_BOT_TOKEN,
+  slackSigningSecret: process.env.SLACK_SIGNING_SECRET,
   runtimeUrl: `http://${host === '::1' ? '[::1]' : '127.0.0.1'}:${port}/api/copilotkit`,
   ownerToken,
 };
-const platform = new Platform(store, workspace, config);
+const pool = createPool(databaseUrl);
+try {
+  await migrate(pool);
+} catch (error) {
+  // Never print the connection string or SQL detail: they can carry secrets.
+  console.error(
+    `Database migration failed (${
+      error instanceof Error ? error.name : 'Error'
+    }). Check DATABASE_URL and that PostgreSQL is reachable; stopping.`,
+  );
+  process.exit(1);
+}
+const conversations = new ConversationStore(pool);
+const learning = new LearningStore(pool);
+const slackEvents = new SlackStore(database);
+const platform = new Platform(
+  store,
+  workspace,
+  config,
+  conversations,
+  slackEvents,
+  learning,
+);
+try {
+  await platform.runner?.preloadAll();
+} catch (error) {
+  console.error(
+    `Could not preload conversations (${
+      error instanceof Error ? error.name : 'Error'
+    }); the thread list starts empty until the next refresh.`,
+  );
+}
 const researchConfig = {
   mode: 'live' as const,
   apiKey: config.apiKey,
@@ -71,6 +119,7 @@ const researchConfig = {
   parallelApiKey: config.parallelApiKey,
   browserUrl: config.browserUrl,
   browserSecret: config.browserSecret,
+  extraHeaders: config.extraHeaders,
 };
 const runner = new Runner(
   store,
@@ -79,9 +128,9 @@ const runner = new Runner(
     const threadId = workspace.taskThread(claim.id);
     if (!threadId)
       throw new Error(
-        'This legacy task has no Intelligence conversation. Create a new scheduled task from a conversation.',
+        'This legacy task has no conversation. Create a new scheduled task from a conversation.',
       );
-    progress('Running this task in its Intelligence conversation.');
+    progress('Running this task in its conversation.');
     const text = await platform.turn(threadId, claim.prompt, signal, {
       opendotsSource: 'scheduled_task',
     });
@@ -89,9 +138,6 @@ const runner = new Runner(
   },
   config.agentRunTimeoutMs,
 );
-const wsOrigin = new URL(
-  config.intelligenceWsUrl ?? 'wss://realtime.intelligence.copilotkit.ai',
-).origin;
 const app = createApp({
   store,
   runner,
@@ -105,7 +151,7 @@ app.use('*', async (c, next) => {
   c.header('Referrer-Policy', 'no-referrer');
   c.header(
     'Content-Security-Policy',
-    `default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self' ${wsOrigin}; media-src 'self' blob:; frame-ancestors 'none'; base-uri 'self'; form-action 'self'`,
+    `default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; media-src 'self' blob:; frame-ancestors 'none'; base-uri 'self'; form-action 'self'`,
   );
   await next();
 });
@@ -113,20 +159,20 @@ app.get('/api/*', (c) => c.json({ error: 'Not found.' }, 404));
 app.use('/*', serveStatic({ root: './dist/client' }));
 app.get('*', serveStatic({ path: './dist/client/index.html' }));
 const server = serve({ fetch: app.fetch, hostname: host, port }, (info) => {
-  console.log(`OpenDots template listening on http://${host}:${info.port}`);
+  console.log(`OpenDots listening on http://${host}:${info.port}`);
   runner.start();
   void platform
     .start()
     .catch((error) =>
-      reportChannelFailure(
-        'Slack Channels activation failed; check setup status',
-        [safeFailure(error)],
-      ),
+      reportChannelFailure('Startup task failed', [safeFailure(error)]),
     );
 });
 const shutdown = createShutdown({
   stopRunner: () => runner.stop(),
-  stopPlatform: () => platform.stop(),
+  stopPlatform: async () => {
+    await platform.stop();
+    await pool.end();
+  },
   closeServer: () =>
     new Promise<void>((resolve, reject) =>
       server.close((error) => (error ? reject(error) : resolve())),

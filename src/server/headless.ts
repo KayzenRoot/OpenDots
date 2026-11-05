@@ -1,7 +1,5 @@
-import { IntelligenceAgent } from '@copilotkit/core';
-import type { Message } from '@ag-ui/core';
+import { HttpAgent, type Message } from '@ag-ui/client';
 import { randomUUID } from 'node:crypto';
-import { z } from 'zod';
 import { voiceReceiptMessagePrefix } from '../shared/voice-receipt.js';
 import { scheduledTaskMessagePrefix } from '../shared/scheduled-message.js';
 
@@ -15,12 +13,10 @@ export function currentTurnText(messages: Message[], error?: Error): string {
   return content;
 }
 
-const runtimeInfoSchema = z.object({
-  mode: z.literal('intelligence'),
-  intelligence: z.object({ wsUrl: z.url() }),
-  agents: z.record(z.string(), z.unknown()),
-});
-
+/**
+ * Server-side turn against our own SSE runtime. The runtime serves the local
+ * thread backend, so no CopilotKit hosted service or API key is involved.
+ */
 export async function runThreadTurn(
   runtimeUrl: string,
   headers: Record<string, string>,
@@ -33,24 +29,21 @@ export async function runThreadTurn(
   signal.throwIfAborted();
   const response = await fetch(`${runtimeUrl}/info`, { headers, signal });
   if (!response.ok)
-    throw new Error(`Intelligence runtime returned HTTP ${response.status}.`);
-  const info = runtimeInfoSchema.parse(await response.json());
-  if (!Object.hasOwn(info.agents, dotId))
+    throw new Error(`Runtime returned HTTP ${response.status}.`);
+  const info = (await response.json()) as { agents?: Record<string, unknown> };
+  if (!info.agents || !Object.hasOwn(info.agents, dotId))
     throw new Error('The selected Dot is unavailable in the runtime.');
-  // Core's runtime discovery is browser-only. Use the SDK's Node-compatible
-  // Intelligence agent for voice compute and scheduled server turns.
-  const agent = new IntelligenceAgent({
-    url: info.intelligence.wsUrl,
-    runtimeUrl,
+  const agent = new HttpAgent({
+    url: `${runtimeUrl}/agent/${encodeURIComponent(dotId)}/run`,
     agentId: dotId,
+    threadId,
     headers,
-    fetch: (input, init) =>
-      fetch(input, {
+    fetch: (url, init) =>
+      fetch(url, {
         ...init,
         signal: init?.signal ? AbortSignal.any([signal, init.signal]) : signal,
       }),
   });
-  agent.threadId = threadId;
   let runError: Error | undefined;
   const subscription = agent.subscribe({
     onRunErrorEvent: ({ event }) => {

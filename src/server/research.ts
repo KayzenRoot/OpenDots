@@ -8,6 +8,8 @@ export interface Config extends WebConfig {
   model?: string;
   browserUrl?: string;
   browserSecret?: string;
+  /** Extra headers required by the model gateway (see OPENAI_EXTRA_HEADERS). */
+  extraHeaders?: Record<string, string>;
 }
 export const browserResponse = z.object({
   title: z.string(),
@@ -153,6 +155,7 @@ export async function research(
       headers: {
         'Content-Type': 'application/json',
         Authorization: `Bearer ${config.apiKey}`,
+        ...config.extraHeaders,
       },
       signal,
       body: JSON.stringify({
