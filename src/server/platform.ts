@@ -1,3 +1,4 @@
+import type { ModelConfigStore } from './model-config.js';
 import { ComputerService } from './computer-service.js';
 import { ConnectionService } from './connections.js';
 import { PageService, type PageConversations } from './page-service.js';
@@ -26,6 +27,7 @@ export class Platform {
   readonly computers: ComputerService;
   readonly connections: ConnectionService;
   readonly conversations?: ConversationStorage;
+  readonly modelConfig?: ModelConfigStore;
   /** Readiness probe: rejects unless conversation storage is configured and answers. */
   async ping(): Promise<void> {
     if (!this.conversations) throw new Error('Conversation storage is absent.');
@@ -42,7 +44,9 @@ export class Platform {
     conversations?: ConversationStorage,
     slackEvents?: SlackStore,
     learning?: SkillSource,
+    modelConfig?: ModelConfigStore,
   ) {
+    this.modelConfig = modelConfig;
     this.setupTelemetry = new SetupTelemetry(store);
     this.computers = new ComputerService(
       workspace,

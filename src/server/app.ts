@@ -1,4 +1,5 @@
 import { computerRoutes } from './computer-routes.js';
+import { modelRoutes } from './model-routes.js';
 import { connectionRoutes } from './connection-routes.js';
 import { Hono } from 'hono';
 import { bodyLimit } from 'hono/body-limit';
@@ -119,6 +120,8 @@ export function createApp({
       return c.json({ error: 'Use application/json.' }, 415);
     await next();
   });
+  if (platform && platform.modelConfig)
+    app.route('/api', modelRoutes(platform.modelConfig));
   if (platform) app.route('/api', computerRoutes(platform.computers));
   if (platform)
     app.route(

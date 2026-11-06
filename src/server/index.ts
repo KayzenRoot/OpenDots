@@ -12,6 +12,8 @@ import { Platform } from './platform.js';
 import { ConversationStore } from './conversation-store.js';
 import { LearningStore } from './learning-store.js';
 import { SlackStore } from './slack-store.js';
+import { ModelConfigStore } from './model-config.js';
+import { dirname, join } from 'node:path';
 import { createPool, migrate } from './pg.js';
 import {
   agentRunTimeoutMsFromEnv,
@@ -93,6 +95,18 @@ try {
 const conversations = new ConversationStore(pool);
 const learning = new LearningStore(pool);
 const slackEvents = new SlackStore(database);
+// The model provider saved from the in-app settings wins over the environment.
+// It is sealed on disk; the key is opened only here, into the runtime config.
+const modelConfig = new ModelConfigStore(
+  database,
+  process.env.MASTER_KEY_PATH ?? join(dirname(database), 'master.key'),
+);
+const saved = modelConfig.get();
+if (saved) {
+  config.baseUrl = saved.baseUrl;
+  config.model = saved.model;
+  config.apiKey = saved.apiKey;
+}
 const platform = new Platform(
   store,
   workspace,
@@ -100,6 +114,7 @@ const platform = new Platform(
   conversations,
   slackEvents,
   learning,
+  modelConfig,
 );
 try {
   await platform.runner?.preloadAll();
