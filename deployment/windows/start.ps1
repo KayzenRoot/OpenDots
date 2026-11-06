@@ -28,6 +28,12 @@ if ($LASTEXITCODE -ne 0) {
 }
 
 Write-Host 'Starting OpenDots...' -ForegroundColor Cyan
+# A variable already exported in the environment wins over --env-file, so a stray
+# OPENAI_* in the shell silently overrides .env.local. Clear them first.
+foreach ($v in @('OPENAI_API_KEY','OPENAI_BASE_URL','OPENAI_API_BASE','OPENAI_MODEL','OPENAI_EXTRA_HEADERS')) {
+    Remove-Item "Env:$v" -ErrorAction SilentlyContinue
+}
+
 docker compose -p opendots --env-file .env.local -f compose.yml -f compose.local.yml up -d
 if ($LASTEXITCODE -ne 0) { throw "docker compose up failed ($LASTEXITCODE)" }
 

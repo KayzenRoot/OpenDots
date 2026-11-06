@@ -83,7 +83,13 @@ if ($LASTEXITCODE -eq 0) {
     Info 'image already built; skipping build (delete the image to force a rebuild)'
 } else {
     Info 'building (first run takes a few minutes)'
-    docker compose @compose build
+    # A variable already exported in the environment wins over --env-file, so a stray
+# OPENAI_* in the shell silently overrides .env.local. Clear them first.
+foreach ($v in @('OPENAI_API_KEY','OPENAI_BASE_URL','OPENAI_API_BASE','OPENAI_MODEL','OPENAI_EXTRA_HEADERS')) {
+    Remove-Item "Env:$v" -ErrorAction SilentlyContinue
+}
+
+docker compose @compose build
     if ($LASTEXITCODE -ne 0) { Fail 'image build failed' }
 }
 

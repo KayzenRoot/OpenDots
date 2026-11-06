@@ -121,7 +121,10 @@ export function createApp({
     await next();
   });
   if (platform && platform.modelConfig)
-    app.route('/api', modelRoutes(platform.modelConfig));
+    app.route(
+      '/api',
+      modelRoutes(platform.modelConfig, fetch, platform.config.extraHeaders),
+    );
   if (platform) app.route('/api', computerRoutes(platform.computers));
   if (platform)
     app.route(

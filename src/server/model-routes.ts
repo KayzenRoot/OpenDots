@@ -10,9 +10,17 @@ const configSchema = z
   })
   .strict();
 
-/** Provider reachability: a one-token completion. Errors are reduced to a code. */
+export interface ProbeConfig {
+  baseUrl: string;
+  model: string;
+  apiKey: string;
+  /** Routing headers the gateway needs, e.g. OpenCode Go's x-opencode-session. */
+  extraHeaders?: Record<string, string>;
+}
+
+/** Provider reachability: a one-token completion. Errors are reduced to a safe message. */
 export async function probeProvider(
-  config: { baseUrl: string; model: string; apiKey: string },
+  config: ProbeConfig,
   fetcher: typeof fetch = fetch,
 ): Promise<{ ok: true } | { ok: false; reason: string }> {
   const url = config.baseUrl.replace(/\/$/, '') + '/chat/completions';
@@ -22,6 +30,9 @@ export async function probeProvider(
       headers: {
         'content-type': 'application/json',
         authorization: `Bearer ${config.apiKey}`,
+        // Without the gateway's routing header the request is refused with 400,
+        // which would wrongly look like a bad key. Send the same headers as runtime.
+        ...(config.extraHeaders ?? {}),
       },
       body: JSON.stringify({
         model: config.model,
@@ -52,6 +63,7 @@ export async function probeProvider(
 export function modelRoutes(
   store: ModelConfigStore,
   fetcher: typeof fetch = fetch,
+  extraHeaders: Record<string, string> = {},
 ) {
   const app = new Hono();
 
@@ -63,7 +75,10 @@ export function modelRoutes(
     const parsed = configSchema.safeParse(await c.req.json().catch(() => null));
     if (!parsed.success)
       return c.json({ error: 'Check the base URL, model and key.' }, 400);
-    const probe = await probeProvider(parsed.data, fetcher);
+    const probe = await probeProvider(
+      { ...parsed.data, extraHeaders },
+      fetcher,
+    );
     if (!probe.ok) return c.json({ error: probe.reason }, 422);
     store.save(parsed.data);
     return c.json({
@@ -74,12 +89,15 @@ export function modelRoutes(
     });
   });
 
-  // Test an arbitrary configuration without saving it (the "Test connection" button).
+  // Test a candidate without saving it (the "Test connection" button).
   app.post('/model/test', async (c) => {
     const parsed = configSchema.safeParse(await c.req.json().catch(() => null));
     if (!parsed.success)
       return c.json({ error: 'Check the base URL, model and key.' }, 400);
-    const probe = await probeProvider(parsed.data, fetcher);
+    const probe = await probeProvider(
+      { ...parsed.data, extraHeaders },
+      fetcher,
+    );
     return probe.ok
       ? c.json({ ok: true })
       : c.json({ ok: false, error: probe.reason }, 422);

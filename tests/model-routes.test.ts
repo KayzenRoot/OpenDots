@@ -85,3 +85,29 @@ describe('model routes', () => {
     expect(called).toBe(false);
   });
 });
+
+describe('gateway routing headers', () => {
+  it('sends the runtime routing header when probing, so a real key is not misread as bad', async () => {
+    let seen: Record<string, string> = {};
+    const spy = (async (_url: unknown, init?: RequestInit) => {
+      seen = Object.fromEntries(
+        Object.entries(init?.headers as Record<string, string>),
+      );
+      return seen['x-opencode-session']
+        ? new Response('{}', { status: 200 })
+        : new Response('bad', { status: 400 });
+    }) as typeof fetch;
+    const d = mkdtempSync(join(tmpdir(), 'od-hdr-'));
+    const store = new ModelConfigStore(
+      join(d, 'app.sqlite'),
+      join(d, 'master.key'),
+    );
+    const app = new Hono().route(
+      '/api',
+      modelRoutes(store, spy, { 'x-opencode-session': 'opendots-test' }),
+    );
+    const res = await app.request('/api/model', json(body));
+    expect(seen['x-opencode-session']).toBe('opendots-test');
+    expect(res.status).toBe(200);
+  });
+});
