@@ -53,6 +53,18 @@ const migrations: readonly string[] = [
   `
   CREATE UNIQUE INDEX IF NOT EXISTS skills_dot_name_idx ON skills (dot_id, name);
   `,
+  // Version 3: a model-authored skill is untrusted until a human approves it,
+  // so approval is a distinct status rather than `enabled = false`. Existing
+  // rows are treated as approved. `rejection_reason` remembers why a proposal
+  // was rejected so a later reflection pass can skip re-proposing it;
+  // `updated_at` carries the rejection timestamp.
+  `
+  ALTER TABLE skills
+    ADD COLUMN IF NOT EXISTS status TEXT NOT NULL DEFAULT 'approved'
+      CHECK (status IN ('approved', 'proposed', 'rejected'));
+  ALTER TABLE skills
+    ADD COLUMN IF NOT EXISTS rejection_reason TEXT;
+  `,
 ];
 
 /** Build a bounded connection pool. The connection string is never logged. */

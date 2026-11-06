@@ -10,7 +10,7 @@ import {
 } from '@copilotkit/runtime/v2';
 import { PostgresAgentRunner } from './agent-runner.js';
 import type { ConversationStorage } from './conversation-store.js';
-import type { SkillSource } from './learning.js';
+import type { LearningStore } from './learning-store.js';
 import { Store } from './store.js';
 import { WorkspaceStore } from './workspace.js';
 import { DotAgent } from './dot-agent.js';
@@ -36,14 +36,15 @@ export class Platform {
   readonly runner?: PostgresAgentRunner;
   readonly handler?: CopilotHonoApp;
   readonly slack: SlackService;
-  readonly learning?: SkillSource;
+  /** Postgres-backed per-Dot skills, when a database is configured. */
+  readonly learning?: LearningStore;
   constructor(
     readonly store: Store,
     readonly workspace: WorkspaceStore,
     readonly config: PlatformConfig,
     conversations?: ConversationStorage,
     slackEvents?: SlackStore,
-    learning?: SkillSource,
+    learning?: LearningStore,
     modelConfig?: ModelConfigStore,
   ) {
     this.modelConfig = modelConfig;

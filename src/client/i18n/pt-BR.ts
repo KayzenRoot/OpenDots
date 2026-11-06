@@ -292,6 +292,38 @@ export const ptBR: Record<keyof typeof en, string> = {
   'connections.connecting': 'Conectando…',
   'connections.connect': 'Conectar',
 
+  // Skills (per Dot)
+  'skills.title': 'Habilidades',
+  'skills.help':
+    'Orientação reutilizável que este Dot lê no início de um turno. Uma habilidade é Markdown, não código, e só as aprovadas e ativas são usadas.',
+  'skills.loadFailed': 'Não foi possível carregar as habilidades.',
+  'skills.requestFailed': 'A solicitação falhou.',
+  'skills.new': 'Adicionar habilidade',
+  'skills.empty': 'Nenhuma habilidade ainda.',
+  'skills.name': 'Nome',
+  'skills.namePlaceholder': 'revisao-de-evidencias',
+  'skills.nameHint':
+    'Letras minúsculas, dígitos e hífens; este nome é passado ao modelo.',
+  'skills.body': 'Corpo em Markdown',
+  'skills.bodyPlaceholder':
+    'Explique o que fazer, quando fazer e o que evitar.',
+  'skills.preview': 'Prévia',
+  'skills.noPreview': 'Ainda não há nada para pré-visualizar.',
+  'skills.revision': 'Revisão {revision}',
+  'skills.enabled': 'Ativa',
+  'skills.disabled': 'Desativada',
+  'skills.editAria': 'Editar {name}',
+  'skills.deleteAria': 'Excluir {name}',
+  'skills.deleteConfirm': 'Excluir "{name}"? Não dá para desfazer.',
+  'skills.proposals': 'Sugeridas pelo Dot',
+  'skills.proposalsHelp':
+    'Encontradas nas suas conversas. Nada aqui é usado até você aprovar.',
+  'skills.approve': 'Aprovar',
+  'skills.editApprove': 'Editar e aprovar',
+  'skills.reject': 'Rejeitar',
+  'skills.rejectReason': 'Por que rejeitar?',
+  'skills.rejectReasonPlaceholder': 'ex.: específica demais para uma conversa',
+
   // Connected-service action card
   'connectionAction.loadFailed': 'Não foi possível carregar esta solicitação.',
   'connectionAction.checkFailed': 'Não foi possível verificar esta ação.',
@@ -593,7 +625,7 @@ export const ptBR: Record<keyof typeof en, string> = {
   'dialog.localSkills': 'Habilidades locais',
   'dialog.skillSetId': 'ID do conjunto de habilidades (opcional)',
   'dialog.skillsHelp':
-    'As habilidades ficam no banco local deste workspace, por Dot, e nunca são enviadas para um serviço hospedado. Deixe em branco para manter este Dot fora da entrega de habilidades. Este painel só controla a entrega; ainda não há um editor de habilidades aqui.',
+    'As habilidades ficam no banco local deste workspace, por Dot, e nunca são enviadas para um serviço hospedado. Deixe em branco para manter este Dot fora da entrega de habilidades. Este painel controla a entrega; gerencie as próprias habilidades na seção Habilidades abaixo.',
   'dialog.deliverSkills': 'Entregar habilidades locais',
   'dialog.deliverSkillsHelp':
     'Expõe as habilidades locais ativas deste Dot no início de cada turno. Desligar isso interrompe o carregamento das habilidades na hora.',

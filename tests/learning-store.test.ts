@@ -119,4 +119,66 @@ describePostgres('LearningStore (PostgreSQL)', () => {
     expect((await store.getSkill(dotA, 'shared-name'))?.body).toBe('A');
     expect((await store.getSkill(dotB, 'shared-name'))?.body).toBe('B');
   });
+
+  it('writes a hand-authored skill as approved', async () => {
+    const created = await store.upsertSkill(dotA, {
+      name: 'notes',
+      body: 'v1',
+    });
+    expect(created.status).toBe('approved');
+    expect(created.rejectionReason).toBeNull();
+    expect((await store.deliverableSkills(dotA)).map((s) => s.name)).toEqual([
+      'notes',
+    ]);
+  });
+
+  it('delivers a proposal only after approval, and not while disabled', async () => {
+    const proposed = await store.proposeSkill(dotA, {
+      name: 'suggested',
+      body: 'Found in a conversation.',
+    });
+    expect(proposed).toMatchObject({ status: 'proposed', enabled: true });
+    expect(await store.listProposals(dotA)).toHaveLength(1);
+    // A proposal is never delivered, even though it is enabled.
+    expect(await store.deliverableSkills(dotA)).toEqual([]);
+
+    const approved = await store.approveSkill(dotA, 'suggested');
+    expect(approved).toMatchObject({ status: 'approved' });
+    expect(await store.listProposals(dotA)).toHaveLength(0);
+    expect((await store.deliverableSkills(dotA)).map((s) => s.name)).toEqual([
+      'suggested',
+    ]);
+
+    await store.setSkillEnabled(dotA, 'suggested', false);
+    expect(await store.deliverableSkills(dotA)).toEqual([]);
+  });
+
+  it('remembers a rejection with a reason, and an upsert clears it', async () => {
+    await store.proposeSkill(dotA, { name: 'noisy', body: 'Too specific.' });
+    const rejected = await store.rejectSkill(dotA, 'noisy', 'Too specific.');
+    expect(rejected).toMatchObject({
+      status: 'rejected',
+      rejectionReason: 'Too specific.',
+    });
+    expect(await store.listProposals(dotA)).toHaveLength(0);
+    expect(await store.deliverableSkills(dotA)).toEqual([]);
+
+    const rewritten = await store.upsertSkill(dotA, {
+      name: 'noisy',
+      body: 'Now a durable rule.',
+    });
+    expect(rewritten).toMatchObject({
+      status: 'approved',
+      rejectionReason: null,
+      revision: 2,
+    });
+  });
+
+  it('drops a proposal whose name is already taken', async () => {
+    await store.upsertSkill(dotA, { name: 'taken', body: 'Human authored.' });
+    expect(
+      await store.proposeSkill(dotA, { name: 'taken', body: 'Model idea.' }),
+    ).toBeNull();
+    expect((await store.getSkill(dotA, 'taken'))?.body).toBe('Human authored.');
+  });
 });

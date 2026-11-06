@@ -290,6 +290,38 @@ export const en = {
   'connections.connecting': 'Connecting…',
   'connections.connect': 'Connect',
 
+  // Skills (per Dot)
+  'skills.title': 'Skills',
+  'skills.help':
+    'Reusable guidance this Dot reads at the start of a turn. A skill is Markdown, not code, and only approved and enabled skills are used.',
+  'skills.loadFailed': 'Could not load skills.',
+  'skills.requestFailed': 'Request failed.',
+  'skills.new': 'Add skill',
+  'skills.empty': 'No skills yet.',
+  'skills.name': 'Name',
+  'skills.namePlaceholder': 'evidence-review',
+  'skills.nameHint':
+    'Lowercase letters, digits and dashes; this name is passed to the model.',
+  'skills.body': 'Markdown body',
+  'skills.bodyPlaceholder':
+    'Explain what to do, when to do it, and what to avoid.',
+  'skills.preview': 'Preview',
+  'skills.noPreview': 'Nothing to preview yet.',
+  'skills.revision': 'Revision {revision}',
+  'skills.enabled': 'Enabled',
+  'skills.disabled': 'Disabled',
+  'skills.editAria': 'Edit {name}',
+  'skills.deleteAria': 'Delete {name}',
+  'skills.deleteConfirm': 'Delete "{name}"? This cannot be undone.',
+  'skills.proposals': 'Suggested by Dot',
+  'skills.proposalsHelp':
+    'Found in your conversations. Nothing here is used until you approve it.',
+  'skills.approve': 'Approve',
+  'skills.editApprove': 'Edit & approve',
+  'skills.reject': 'Reject',
+  'skills.rejectReason': 'Why reject it?',
+  'skills.rejectReasonPlaceholder': 'e.g. too specific to one conversation',
+
   // Connected-service action card
   'connectionAction.loadFailed': 'Could not load this request.',
   'connectionAction.checkFailed': 'Could not check this action.',
@@ -589,7 +621,7 @@ export const en = {
   'dialog.localSkills': 'Local skills',
   'dialog.skillSetId': 'Skill set ID (optional)',
   'dialog.skillsHelp':
-    'Skills live in this workspace’s local database, keyed by Dot, and are never sent to a hosted service. Leave blank to keep this Dot out of skill delivery. This panel only controls delivery; there is no skill editor here yet.',
+    'Skills live in this workspace’s local database, keyed by Dot, and are never sent to a hosted service. Leave blank to keep this Dot out of skill delivery. This panel controls delivery; manage the skills themselves in the Skills section below.',
   'dialog.deliverSkills': 'Deliver local skills',
   'dialog.deliverSkillsHelp':
     'Expose this Dot’s enabled local skills at the start of each turn. Turning this off stops skill loading immediately.',

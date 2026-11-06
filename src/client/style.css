@@ -4449,3 +4449,91 @@ h3 {
   position: relative;
   z-index: 1;
 }
+
+/* Per-Dot skills editor: approved list, model proposals, Markdown preview. */
+.skill-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 10px 0;
+}
+.skill-editor textarea {
+  font-family: inherit;
+  resize: vertical;
+}
+.skill-preview {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 10px 12px;
+  max-height: 240px;
+  overflow: auto;
+  font-size: 12px;
+  line-height: 1.7;
+}
+.skill-preview > .field-label {
+  display: block;
+  margin-bottom: 6px;
+}
+.skill-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin: 8px 0;
+}
+.skill-actions button {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+.skill {
+  border-top: 1px solid var(--line);
+  padding: 12px 0 4px;
+}
+.skill-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 9px;
+}
+.skill-head > span {
+  flex: 1;
+  min-width: 0;
+}
+.skill-head strong {
+  display: block;
+  font-size: 12px;
+  font-weight: 600;
+}
+.skill-head small {
+  display: block;
+  font-size: 10px;
+  color: var(--muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.skill-head em {
+  font-style: normal;
+  font-size: 10px;
+  color: var(--muted);
+  white-space: nowrap;
+}
+.skill-proposals {
+  margin-top: 10px;
+}
+.skill-proposals h4 {
+  margin: 0;
+  font-size: 12px;
+  font-weight: 600;
+}
+.skill-proposal .skill-body {
+  max-height: 240px;
+  overflow: auto;
+  font-size: 12px;
+  line-height: 1.7;
+  margin: 6px 0;
+}
+.skill-reject {
+  margin: 6px 0;
+}

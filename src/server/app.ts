@@ -1,5 +1,6 @@
 import { computerRoutes } from './computer-routes.js';
 import { modelRoutes } from './model-routes.js';
+import { skillRoutes } from './skill-routes.js';
 import { connectionRoutes } from './connection-routes.js';
 import { Hono } from 'hono';
 import { bodyLimit } from 'hono/body-limit';
@@ -154,6 +155,8 @@ export function createApp({
       '/api',
       modelRoutes(platform.modelConfig, fetch, platform.config.extraHeaders),
     );
+  if (platform && platform.learning)
+    app.route('/api', skillRoutes(platform.workspace, platform.learning));
   if (platform) app.route('/api', computerRoutes(platform.computers));
   if (platform)
     app.route(
