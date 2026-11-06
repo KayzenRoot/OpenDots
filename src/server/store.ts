@@ -76,6 +76,13 @@ export class Store {
     return { ...defaults, ...(JSON.parse(row.value) as Partial<Settings>) };
   }
   updateSettings(patch: Partial<Settings>): Settings {
+    // Defence in depth: the HTTP route validates strictly, but a caller that
+    // bypasses it must not be able to write an arbitrary key into the settings
+    // document, where it would persist and be read back on the next boot.
+    const known = Object.keys(this.settings()) as (keyof Settings)[];
+    for (const key of Object.keys(patch))
+      if (!known.includes(key as keyof Settings))
+        throw new Error(`Unknown setting: ${key}.`);
     return this.transaction(() => {
       const previous = this.settings();
       const settings = { ...previous, ...patch };
