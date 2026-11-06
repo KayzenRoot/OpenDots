@@ -13,6 +13,7 @@ import { Runner } from './runner.js';
 import { configured, type Config } from './research.js';
 import type { Platform } from './platform.js';
 import { slackRoutes } from './slack-service.js';
+import { telegramRoutes } from './telegram-service.js';
 import { FixedWindowLimiter, clientKey } from './rate-limit.js';
 import { VoiceService } from './voice.js';
 import { workspaceRoutes } from './workspace-routes.js';
@@ -71,6 +72,25 @@ export function createApp({
     await next();
   });
   if (platform) app.route('/api/slack', slackRoutes(platform.slack));
+  // Registered before the origin/owner middleware below, next to Slack, for the
+  // same reason: Telegram cannot present an owner token, so this route
+  // authenticates with the shared secret token Telegram echoes in
+  // X-Telegram-Bot-Api-Secret-Token (see telegram-service.ts). It is
+  // intentionally reachable without an owner token and is safe to expose
+  // because no update runs an agent unless the sender passes the
+  // TELEGRAM_OWNER_ID allowlist. No Telegram-supplied id is trusted before
+  // that check. The webhook is reachable without an owner token by design, so
+  // it is a public write path: cap it per client, like Slack's.
+  const telegramLimiter = new FixedWindowLimiter(120, 60_000);
+  app.use('/api/telegram/*', async (c, next) => {
+    const decision = telegramLimiter.check(clientKey(c.req.raw.headers));
+    if (!decision.allowed) {
+      c.header('Retry-After', String(decision.retryAfterSeconds));
+      return c.json({ error: 'Too many requests.' }, 429);
+    }
+    await next();
+  });
+  if (platform) app.route('/api/telegram', telegramRoutes(platform.telegram));
   // Probes for Docker, the reverse proxy and orchestrators. They must answer
   // without an owner token, so they sit before the owner middleware below.
   // Liveness reveals nothing. Readiness reports only the NAMES of missing setup

@@ -21,6 +21,8 @@ import { validateRuntimeScope } from './runtime-scope.js';
 import { SetupTelemetry } from './setup-telemetry.js';
 import { SlackService } from './slack-service.js';
 import { SlackStore } from './slack-store.js';
+import { TelegramService } from './telegram-service.js';
+import { TelegramStore } from './telegram-store.js';
 
 export class Platform {
   readonly setupTelemetry: SetupTelemetry;
@@ -39,6 +41,7 @@ export class Platform {
   readonly runner?: PostgresAgentRunner;
   readonly handler?: CopilotHonoApp;
   readonly slack: SlackService;
+  readonly telegram: TelegramService;
   /** Postgres-backed per-Dot skills, when a database is configured. */
   readonly learning?: LearningStore;
   /** The automatic learning pass (WORK-021), when both stores are configured. */
@@ -52,6 +55,8 @@ export class Platform {
     learning?: LearningStore,
     modelConfig?: ModelConfigStore,
     dotModelConfig?: DotModelConfigStore,
+    // Appended last so existing positional callers keep their meaning.
+    telegramUpdates?: TelegramStore,
   ) {
     this.modelConfig = modelConfig;
     this.dotModelConfig = dotModelConfig;
@@ -70,6 +75,17 @@ export class Platform {
       workspace,
       events: slackEvents ?? new SlackStore(':memory:'),
       paused: () => store.settings().paused,
+      turn: (threadId, prompt, signal, metadata) =>
+        this.turn(threadId, prompt, signal, metadata),
+    });
+    this.telegram = new TelegramService({
+      config,
+      workspace,
+      updates: telegramUpdates ?? new TelegramStore(':memory:'),
+      paused: () => store.settings().paused,
+      // The channel-side kill switch flips the same workspace setting the
+      // in-app Pause control uses, so every paused gate sees it.
+      setPaused: (paused) => store.updateSettings({ paused }),
       turn: (threadId, prompt, signal, metadata) =>
         this.turn(threadId, prompt, signal, metadata),
     });
@@ -162,9 +178,12 @@ export class Platform {
   }
   async start() {
     this.setupTelemetry.start();
-    // Activation is a no-op without Slack env, so the app starts normally.
+    // Activation is a no-op without Slack/Telegram env, so the app starts
+    // normally. Each channel activates in turn; a failure is attributed to the
+    // channels step and rethrown so startup logs it.
     try {
       await this.slack.start();
+      await this.telegram.start();
     } catch (error) {
       this.setupTelemetry.capture({
         kind: 'setup_failed',
@@ -177,6 +196,7 @@ export class Platform {
   async stop() {
     await this.setupTelemetry.stop();
     this.slack.stop();
+    this.telegram.stop();
   }
   async createConversation(dotId: string, title: string) {
     this.requireReady();

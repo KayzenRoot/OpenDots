@@ -12,6 +12,7 @@ import { Platform } from './platform.js';
 import { ConversationStore } from './conversation-store.js';
 import { LearningStore } from './learning-store.js';
 import { SlackStore } from './slack-store.js';
+import { TelegramStore } from './telegram-store.js';
 import { ModelConfigStore, DotModelConfigStore } from './model-config.js';
 import { dirname, join } from 'node:path';
 import { createPool, migrate } from './pg.js';
@@ -80,6 +81,10 @@ const config: PlatformConfig = {
   slackDotId: process.env.SLACK_DOT_ID || undefined,
   slackBotToken: process.env.SLACK_BOT_TOKEN,
   slackSigningSecret: process.env.SLACK_SIGNING_SECRET,
+  telegramBotToken: process.env.TELEGRAM_BOT_TOKEN,
+  telegramWebhookSecret: process.env.TELEGRAM_WEBHOOK_SECRET,
+  telegramOwnerId: process.env.TELEGRAM_OWNER_ID?.trim() || undefined,
+  telegramDotId: process.env.TELEGRAM_DOT_ID || undefined,
   runtimeUrl: `http://${host === '::1' ? '[::1]' : '127.0.0.1'}:${port}/api/copilotkit`,
   ownerToken,
 };
@@ -98,6 +103,7 @@ try {
 const conversations = new ConversationStore(pool);
 const learning = new LearningStore(pool);
 const slackEvents = new SlackStore(database);
+const telegramUpdates = new TelegramStore(database);
 // The model provider saved from the in-app settings wins over the environment.
 // It is sealed on disk; the key is opened only here, into the runtime config.
 const modelConfig = new ModelConfigStore(
@@ -127,6 +133,7 @@ const platform = new Platform(
   learning,
   modelConfig,
   dotModelConfig,
+  telegramUpdates,
 );
 try {
   await platform.runner?.preloadAll();

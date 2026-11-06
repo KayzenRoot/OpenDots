@@ -87,6 +87,14 @@ export interface PlatformConfig extends WebConfig {
   slackBotToken?: string;
   /** `SLACK_SIGNING_SECRET`: inbound Events API request verification. */
   slackSigningSecret?: string;
+  /** `TELEGRAM_BOT_TOKEN`: outbound Bot API calls. */
+  telegramBotToken?: string;
+  /** `TELEGRAM_WEBHOOK_SECRET`: inbound webhook shared secret (setWebhook). */
+  telegramWebhookSecret?: string;
+  /** `TELEGRAM_OWNER_ID`: the single allowlisted Telegram user. */
+  telegramOwnerId?: string;
+  /** `TELEGRAM_DOT_ID`: Dot answering new Telegram chats; defaults to the first. */
+  telegramDotId?: string;
   runtimeUrl: string;
   ownerToken?: string;
   /**
