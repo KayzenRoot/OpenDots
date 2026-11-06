@@ -179,14 +179,25 @@ You configure the Intelligence project, model provider, and channel connection f
 Use **Node.js 24** and **npm**:
 
 ```sh
-git clone https://github.com/CopilotKit/OpenDots.git
-cd NexBot
+git clone https://github.com/KayzenRoot/nexbot.git
+cd nexbot
 npm ci
 cp .env.example .env
 npm run dev
 ```
 
-Open **http://127.0.0.1:5173**. You can create Spaces, write pages, and configure Dots before connecting services. To start chatting, connect an Intelligence project and a model.
+Works on Windows, macOS and Linux — the dev script sets its own environment
+variables, so no shell-specific syntax or extra steps are needed. On Windows run
+it from PowerShell, cmd.exe or Git Bash; the app is served on
+`http://127.0.0.1:5173`.
+
+Configure the model provider **inside the app** under _Settings & setup_ — base
+URL, model and key, with a connection test before anything is saved. Local
+providers such as Ollama work the same way: point the base URL at
+`http://localhost:11434/v1`.
+
+The section below is the upstream hosted setup, kept for reference. This fork
+does not need it.
 
 Choose where to store conversations before connecting. For local Docker evaluation, follow [Local Intelligence evaluation](docs/SETUP.md#local-intelligence-evaluation). For hosted Intelligence, sign in and select or create a project in the `NexBot` folder:
 
