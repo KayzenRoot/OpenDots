@@ -1,3 +1,4 @@
+import { ModelSettings } from './ModelSettings';
 import { useEffect, useRef, useState } from 'react';
 import { X } from 'lucide-react';
 import type { Dot, Memory, State, WorkspaceState } from '../shared/types';
@@ -445,18 +446,10 @@ export function WorkspaceDialog({
           {dialog.type === 'settings' && (
             <div className="config-note">
               <strong>Service setup</strong>
+              <ModelSettings />
               <p>
                 {workspace.setup.missing.length ? (
-                  <>
-                    Add{' '}
-                    {workspace.setup.missing.map((name, index) => (
-                      <span key={name}>
-                        {index > 0 && ', '}
-                        <code>{name}</code>
-                      </span>
-                    ))}{' '}
-                    to the server environment, then restart.
-                  </>
+                  <>Some server setup is still missing.</>
                 ) : (
                   'Text configuration is present. A successful conversation confirms connectivity.'
                 )}
