@@ -6,21 +6,36 @@ import {
 } from 'lucide-react';
 import type { Task } from '../shared/types';
 import { Mascot } from './Mascot';
+import { t as translateMessage, useTranslation, type MessageKey } from './i18n';
 export const relative = (value: number) => {
   const minutes = Math.floor((Date.now() - value) / 60000);
   return minutes < 1
-    ? 'Just now'
+    ? translateMessage('task.justNow')
     : minutes < 60
-      ? `${minutes}m ago`
+      ? translateMessage('task.minutesAgo', { count: minutes })
       : minutes < 1440
-        ? `${Math.floor(minutes / 60)}h ago`
+        ? translateMessage('task.hoursAgo', {
+            count: Math.floor(minutes / 60),
+          })
         : new Date(value).toLocaleDateString();
+};
+const statusKeys: Record<string, MessageKey> = {
+  completed: 'task.statusCompleted',
+  running: 'task.statusRunning',
+  queued: 'task.statusQueued',
+  paused: 'task.statusPaused',
+  failed: 'task.statusFailed',
+  interrupted: 'task.statusInterrupted',
+  cancelled: 'task.statusCancelled',
 };
 export const statusLabel = (task: Task) =>
   task.status === 'completed' && task.nextRunAt
-    ? 'Scheduled'
-    : task.status.charAt(0).toUpperCase() + task.status.slice(1);
+    ? translateMessage('task.statusScheduled')
+    : statusKeys[task.status]
+      ? translateMessage(statusKeys[task.status])
+      : task.status.charAt(0).toUpperCase() + task.status.slice(1);
 export function Status({ task }: { task: Task }) {
+  useTranslation();
   return (
     <span className={`status ${task.status}`}>
       <span />
@@ -36,6 +51,7 @@ export function TaskRow({
   task: Task;
   onClick: () => void;
 }) {
+  const { t } = useTranslation();
   return (
     <button className="task-row" onClick={onClick}>
       <span className="task-row-icon">
@@ -51,7 +67,13 @@ export function TaskRow({
         <strong>{task.prompt}</strong>
         <span>
           {task.intervalSeconds
-            ? `Repeats every ${task.intervalSeconds < 3600 ? task.intervalSeconds / 60 + ' min' : task.intervalSeconds / 3600 + ' hr'} · `
+            ? task.intervalSeconds < 3600
+              ? t('task.repeatsMinutes', {
+                  count: task.intervalSeconds / 60,
+                })
+              : t('task.repeatsHours', {
+                  count: task.intervalSeconds / 3600,
+                })
             : ''}
           {relative(task.updatedAt)}
         </span>

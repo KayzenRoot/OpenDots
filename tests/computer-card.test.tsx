@@ -2,6 +2,9 @@ import { expect, it, vi } from 'vitest';
 import { renderToStaticMarkup } from 'react-dom/server';
 vi.mock('../src/client/api', () => ({ api: vi.fn() }));
 import { ComputerToolCard } from '../src/client/ComputerToolCard';
+import { setLocalePreference } from '../src/client/i18n';
+// These assertions cover the English copy; pin it regardless of the machine.
+setLocalePreference('en');
 
 it('shows real terminal output and does not treat a nonzero exit as success', () => {
   const html = renderToStaticMarkup(

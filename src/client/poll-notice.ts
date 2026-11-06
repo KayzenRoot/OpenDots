@@ -1,3 +1,5 @@
+import { translationsFor } from './i18n';
+
 export interface Notices {
   refresh: string;
   capture: string;
@@ -10,7 +12,10 @@ export interface PollFailure {
   message: string;
 }
 
-const TRANSPORT_MESSAGES = new Set(['Server returned an unreadable response.']);
+// The unreadable-response message is produced in the active language; every
+// shipped translation is treated as a transport failure so a locale switch
+// cannot reclassify an existing notice.
+const TRANSPORT_MESSAGES = new Set(translationsFor('api.unreadable'));
 
 // A failure that carries no HTTP status did not come from the API, so it is a
 // network failure (fetch throws a TypeError whose text differs by browser).

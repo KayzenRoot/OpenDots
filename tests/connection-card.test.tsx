@@ -5,6 +5,9 @@ import { renderToStaticMarkup } from 'react-dom/server';
 const api = vi.hoisted(() => vi.fn());
 vi.mock('../src/client/api', () => ({ api }));
 import { ConnectionActionCard } from '../src/client/ConnectionActionCard';
+import { setLocalePreference } from '../src/client/i18n';
+// These assertions cover the English copy; pin it regardless of the machine.
+setLocalePreference('en');
 
 const text = (node: unknown): string =>
   typeof node === 'string'

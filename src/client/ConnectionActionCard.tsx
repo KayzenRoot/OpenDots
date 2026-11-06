@@ -7,6 +7,7 @@ import {
 } from '../shared/connection-types';
 import { api } from './api';
 import { computerToolResult } from './ComputerToolCard';
+import { useTranslation } from './i18n';
 type Receipt = {
   approvalId: string | null;
   status: 'running' | 'interrupted' | 'done';
@@ -31,6 +32,7 @@ export function ConnectionActionCard({
   threadId: string;
   toolCallId: string;
 }) {
+  const { t } = useTranslation();
   const action = connectionActionSchema.safeParse(args);
   const recorded = computerToolResult(result);
   const [approval, setApproval] = useState<PendingApproval>();
@@ -57,7 +59,7 @@ export function ConnectionActionCard({
           setApprovalError(
             cause instanceof Error
               ? cause.message
-              : 'Could not load this request.',
+              : t('connectionAction.loadFailed'),
           ),
       );
     return () => {
@@ -82,7 +84,7 @@ export function ConnectionActionCard({
             setError(
               cause instanceof Error
                 ? cause.message
-                : 'Could not check this action.',
+                : t('connectionAction.checkFailed'),
             );
         });
     setError('');
@@ -124,7 +126,9 @@ export function ConnectionActionCard({
       await respond({ approved: true, ...value });
     } catch (cause) {
       setError(
-        cause instanceof Error ? cause.message : 'Could not run this action.',
+        cause instanceof Error
+          ? cause.message
+          : t('connectionAction.runFailed'),
       );
     } finally {
       pending.current = false;
@@ -135,36 +139,38 @@ export function ConnectionActionCard({
   return (
     <section
       className="page-review-card connection-action-card"
-      aria-label="Approve connected-service action"
+      aria-label={t('connectionAction.aria')}
     >
       <header>
         <PlugZap size={17} />
         <strong>
           {approval
             ? `${approval.connection} · ${approval.title}`
-            : 'Connected service'}
+            : t('connectionAction.connectedService')}
         </strong>
         <span>
           {approved
             ? outcome?.isError
-              ? 'Failed'
-              : 'Approved'
+              ? t('connectionAction.failed')
+              : t('connectionAction.approved')
             : declined
-              ? 'Declined'
+              ? t('connectionAction.declined')
               : running
-                ? 'Running'
+                ? t('connectionAction.running')
                 : interrupted
-                  ? 'Interrupted'
+                  ? t('connectionAction.interrupted')
                   : finished
-                    ? 'Ended'
+                    ? t('connectionAction.ended')
                     : !ready
-                      ? 'Checking'
-                      : 'Needs your approval'}
+                      ? t('connectionAction.checking')
+                      : t('connectionAction.needsApproval')}
         </span>
       </header>
       <div className="page-review-body">
         <h3>
-          {action.success ? action.data.summary : 'Preparing the action…'}
+          {action.success
+            ? action.data.summary
+            : t('connectionAction.preparing')}
         </h3>
         {entries.length > 0 && (
           <dl className="connection-action-args">
@@ -178,16 +184,13 @@ export function ConnectionActionCard({
         )}
         {mismatch && (
           <div className="connection-action-result failed">
-            <strong>Cannot run</strong>
-            <pre>
-              This card’s saved result belongs to a different approval request.
-              Nothing was run for this one.
-            </pre>
+            <strong>{t('connectionAction.cannotRun')}</strong>
+            <pre>{t('connectionAction.mismatch')}</pre>
           </div>
         )}
         {approvalError && !outcome && (
           <div className="connection-action-result failed">
-            <strong>Cannot run</strong>
+            <strong>{t('connectionAction.cannotRun')}</strong>
             <pre>{approvalError}</pre>
           </div>
         )}
@@ -196,7 +199,9 @@ export function ConnectionActionCard({
             className={`connection-action-result ${outcome.isError ? 'failed' : ''}`}
           >
             <strong>
-              {outcome.isError ? 'Service error' : 'Service response'}
+              {outcome.isError
+                ? t('connectionAction.serviceError')
+                : t('connectionAction.serviceResponse')}
             </strong>
             <pre>{outcome.text}</pre>
           </div>
@@ -206,7 +211,7 @@ export function ConnectionActionCard({
       <footer>
         {!ready && error && (
           <button type="button" onClick={() => setAttempt((n) => n + 1)}>
-            Retry
+            {t('common.retry')}
           </button>
         )}
         {!finished && respond && ready && !running && !mismatch && (
@@ -219,12 +224,12 @@ export function ConnectionActionCard({
             >
               <Check size={15} />
               {busy
-                ? 'Running…'
+                ? t('connectionAction.runningBusy')
                 : outcome
-                  ? 'Continue conversation'
+                  ? t('connectionAction.continue')
                   : interrupted
-                    ? 'Retry & run'
-                    : 'Approve & run'}
+                    ? t('connectionAction.retryRun')
+                    : t('connectionAction.approveRun')}
             </button>
             {!outcome && (
               <button
@@ -232,19 +237,19 @@ export function ConnectionActionCard({
                 disabled={busy}
                 onClick={() => void decide(false)}
               >
-                Decline
+                {t('connectionAction.decline')}
               </button>
             )}
           </>
         )}
         <small>
           {running
-            ? 'This action is still running on the server.'
+            ? t('connectionAction.stillRunning')
             : interrupted
-              ? 'No result was saved for the previous run. Retrying can repeat the action if the service completed it before the interruption.'
+              ? t('connectionAction.interruptedNote')
               : approved || declined || finished
                 ? ''
-                : 'Nothing runs until you approve. These are the exact arguments.'}
+                : t('connectionAction.approvalNote')}
         </small>
       </footer>
     </section>

@@ -5,6 +5,7 @@ import type { Page } from '../server/pages';
 import { Chat } from './Chat';
 import { PageChatRequests } from './page-chat-requests';
 import { api } from './api';
+import { useTranslation } from './i18n';
 export function PageConversation({
   page,
   workspace,
@@ -29,6 +30,7 @@ export function PageConversation({
   const dots = workspace.dots.filter((dot) =>
     dot.spaceIds.includes(page.spaceId),
   );
+  const { t } = useTranslation();
   const [dotId, setDotId] = useState('');
   const dot = dots.find((dot) => dot.id === dotId) ?? dots[0];
   const [thread, setThread] = useState<Conversation>();
@@ -57,10 +59,7 @@ export function PageConversation({
     await requests.current.run(
       scope,
       async () => {
-        if (!(await beforeChat()))
-          throw new Error(
-            'Save or resolve your document changes before starting page chat.',
-          );
+        if (!(await beforeChat())) throw new Error(t('pageChat.saveFirst'));
         return api<Conversation>(
           `/spaces/${page.spaceId}/pages/${page.id}/conversation`,
           'POST',
@@ -76,23 +75,21 @@ export function PageConversation({
           onRefresh();
         },
         failure: (e) =>
-          setError(
-            e instanceof Error ? e.message : 'Could not open page chat.',
-          ),
+          setError(e instanceof Error ? e.message : t('pageChat.openFailed')),
         settled: () => setBusy(false),
       },
     );
   };
   if (thread && dot && thread.dotId === dot.id)
     return (
-      <aside className="document-chat-panel" aria-label="Page conversation">
+      <aside className="document-chat-panel" aria-label={t('pageChat.heading')}>
         <div className="document-chat-heading">
           <span>
-            <MessageCircle size={16} /> Page conversation
+            <MessageCircle size={16} /> {t('pageChat.heading')}
           </span>
           <button
             className="document-icon"
-            aria-label="Close page chat"
+            aria-label={t('pageChat.close')}
             onClick={() => {
               setThread(undefined);
               onOpenChange(false);
@@ -118,15 +115,15 @@ export function PageConversation({
   if (!dot)
     return (
       <div className="document-chat-setup">
-        <span>Add a specialist to work with this Space.</span>
-        <button onClick={onCreateDot}>Create specialist</button>
+        <span>{t('pageChat.addSpecialist')}</span>
+        <button onClick={onCreateDot}>{t('pageChat.createSpecialist')}</button>
       </div>
     );
   if (workspace.setup.missing.length)
     return (
       <div className="document-chat-setup">
-        <span>Connect your assistant to chat about this page.</span>
-        <button onClick={onSettings}>Set up assistant</button>
+        <span>{t('pageChat.connectAssistant')}</span>
+        <button onClick={onSettings}>{t('pageChat.setUpAssistant')}</button>
       </div>
     );
   return (
@@ -139,11 +136,11 @@ export function PageConversation({
         }}
       >
         <label className="sr-only" htmlFor="page-prompt">
-          Ask about this page
+          {t('pageChat.askLabel')}
         </label>
         <input
           id="page-prompt"
-          placeholder="Ask about this page…"
+          placeholder={t('pageChat.askPlaceholder')}
           value={draft}
           onChange={(e) => setDraft(e.target.value)}
           disabled={paused || busy}
@@ -151,7 +148,7 @@ export function PageConversation({
         <div className="document-chat-dock-bottom">
           <label>
             <select
-              aria-label="Page specialist"
+              aria-label={t('pageChat.specialist')}
               disabled={busy}
               value={dot.id}
               onChange={(e) => setDotId(e.target.value)}
@@ -164,10 +161,12 @@ export function PageConversation({
             </select>
             <ChevronDown size={12} />
           </label>
-          <span>{paused ? 'Assistant paused' : 'Uses this saved page'}</span>
+          <span>
+            {paused ? t('pageChat.paused') : t('pageChat.usesSavedPage')}
+          </span>
           <button
             type="submit"
-            aria-label="Send to page assistant"
+            aria-label={t('pageChat.send')}
             disabled={busy || paused}
           >
             <ArrowUp size={18} />

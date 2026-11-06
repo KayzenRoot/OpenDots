@@ -6,6 +6,7 @@ import { api } from './api';
 import { SpaceLibrary } from './SpaceLibrary';
 import { PageDocument } from './PageDocument';
 import { PageOutline } from './PageOutline';
+import { useTranslation } from './i18n';
 export function SpaceWorkspace({
   space,
   pageId,
@@ -31,6 +32,7 @@ export function SpaceWorkspace({
   onSettings: () => void;
   onCreateDot: () => void;
 }) {
+  const { t } = useTranslation();
   const [pages, setPages] = useState<Page[]>([]);
   const removed = useRef(new Set<string>());
   const [error, setError] = useState('');
@@ -50,7 +52,7 @@ export function SpaceWorkspace({
         }
       } catch (e) {
         if (active)
-          setError(e instanceof Error ? e.message : 'Could not load pages.');
+          setError(e instanceof Error ? e.message : t('spaceNav.loadFailed'));
       }
     };
     void load();
@@ -83,19 +85,19 @@ export function SpaceWorkspace({
   const create = async (parentId: string | null) => {
     try {
       const next = await api<Page>(`/spaces/${space.id}/pages`, 'POST', {
-        title: 'Untitled page',
+        title: t('doc.untitledPage'),
         content: '',
         parentId,
       });
       setPages((previous) => [...previous, next]);
       onPage(next.id);
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Could not create page.');
+      setError(e instanceof Error ? e.message : t('space.createFailed'));
     }
   };
   return (
     <main
-      aria-label="Space documents"
+      aria-label={t('space.documents')}
       className={`spaces-surface ${pageId ? 'writing' : 'library'}`}
     >
       {error && (
@@ -145,10 +147,10 @@ export function SpaceWorkspace({
         </div>
       ) : (
         <div className="library-empty">
-          <h2>{loaded ? 'Page not found' : 'Loading page…'}</h2>
+          <h2>{loaded ? t('space.pageNotFound') : t('space.loadingPage')}</h2>
           {loaded && (
             <button className="document-primary" onClick={() => onPage()}>
-              Back to all pages
+              {t('space.backToAllPages')}
             </button>
           )}
         </div>

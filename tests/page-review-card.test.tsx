@@ -4,6 +4,9 @@ import { beforeEach, expect, it, vi } from 'vitest';
 const api = vi.hoisted(() => vi.fn());
 vi.mock('../src/client/api', () => ({ api }));
 import { PageReviewCard } from '../src/client/PageReviewCard';
+import { setLocalePreference } from '../src/client/i18n';
+// These assertions cover the English copy; pin it regardless of the machine.
+setLocalePreference('en');
 
 const draft = { title: 'Brief', content: 'Evidence', spaceId: 'space' };
 const text = (node: unknown): string =>

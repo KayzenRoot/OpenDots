@@ -1,4 +1,12 @@
+import { useTranslation, type MessageKey } from './i18n';
+
 const characters = ['blue', 'mint', 'orange', 'purple'] as const;
+
+const stateKeys: Record<string, MessageKey> = {
+  idle: 'mascot.stateIdle',
+  working: 'mascot.stateWorking',
+  paused: 'mascot.statePaused',
+};
 
 /** Stable identity keeps each specialist recognizable across views and reloads. */
 function characterFor(identity?: string) {
@@ -22,12 +30,14 @@ export function Mascot({
   name?: string;
   decorative?: boolean;
 }) {
+  const { t } = useTranslation();
+  const label = stateKeys[state] ? t(stateKeys[state]) : state;
   return (
     <span className={`mascot ${state} ${small ? 'small' : ''}`}>
       <img
         className="dot-body"
         src={`/dots/${characterFor(identity)}.png`}
-        alt={decorative ? '' : `${name} is ${state}`}
+        alt={decorative ? '' : t('mascot.alt', { name, state: label })}
         width={512}
         height={512}
         draggable={false}
