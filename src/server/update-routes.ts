@@ -1,11 +1,7 @@
 import { Hono } from 'hono';
-import { createRequire } from 'node:module';
 import { fetchLatest, type UpdateCheck } from './update.js';
-
-const require_ = createRequire(import.meta.url);
-const runningVersion: string =
-  require_('../../package.json').version ?? '0.0.0';
-
+import { NEXBOT_VERSION } from './version.js';
+const runningVersion: string = NEXBOT_VERSION;
 /**
  * The check is cached: a UI poll every minute must not turn into a GitHub API
  * call every minute. One outbound check per hour is plenty for a channel whose
@@ -20,7 +16,6 @@ export class UpdateChecker {
     private readonly now: () => number = Date.now,
     private readonly ttlMs = 60 * 60 * 1000,
   ) {}
-
   async check(): Promise<UpdateCheck> {
     if (this.last && this.now() - this.checkedAt < this.ttlMs) return this.last;
     const result = await fetchLatest(runningVersion, this.fetcher, this.token);
@@ -28,15 +23,12 @@ export class UpdateChecker {
     this.checkedAt = this.now();
     return result;
   }
-
   get currentVersion(): string {
     return runningVersion;
   }
 }
-
 export function updateRoutes(checker: UpdateChecker) {
   const app = new Hono();
-
   // Report-only by design: the app never downloads or installs anything. The
   // operator reads the note, downloads the installer from the release page and
   // runs it — the same path as the first install, so the upgrade is confirmed
@@ -55,6 +47,5 @@ export function updateRoutes(checker: UpdateChecker) {
       });
     }
   });
-
   return app;
 }
