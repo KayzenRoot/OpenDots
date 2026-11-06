@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { api } from './api';
+import { useTranslation } from './i18n';
 
 type Saved =
   { configured: false } | { baseUrl: string; model: string; hasKey: true };
@@ -10,6 +11,7 @@ type Saved =
  * provider accepts the key, so a typo cannot silently break every conversation.
  */
 export function ModelSettings() {
+  const { t } = useTranslation();
   const [saved, setSaved] = useState<Saved | null>(null);
   const [baseUrl, setBaseUrl] = useState('https://opencode.ai/zen/go/v1');
   const [model, setModel] = useState('deepseek-v4.1-flash');
@@ -34,23 +36,23 @@ export function ModelSettings() {
   const body = () => JSON.stringify({ baseUrl, model, apiKey });
 
   const test = async () => {
-    setStatus({ tone: 'busy', text: 'Testing the connection…' });
+    setStatus({ tone: 'busy', text: t('model.testing') });
     try {
       await api('/model/test', 'POST', JSON.parse(body()));
       setStatus({
         tone: 'ok',
-        text: 'The provider accepted this configuration.',
+        text: t('model.accepted'),
       });
     } catch (error) {
       setStatus({
         tone: 'error',
-        text: error instanceof Error ? error.message : 'Test failed.',
+        text: error instanceof Error ? error.message : t('model.testFailed'),
       });
     }
   };
 
   const save = async () => {
-    setStatus({ tone: 'busy', text: 'Testing and saving…' });
+    setStatus({ tone: 'busy', text: t('model.testingSaving') });
     try {
       const next = await api<{
         saved: true;
@@ -62,26 +64,26 @@ export function ModelSettings() {
       setApiKey('');
       setStatus({
         tone: 'ok',
-        text: 'Saved. New conversations use this provider.',
+        text: t('model.saved'),
       });
     } catch (error) {
       setStatus({
         tone: 'error',
-        text: error instanceof Error ? error.message : 'Save failed.',
+        text: error instanceof Error ? error.message : t('model.saveFailed'),
       });
     }
   };
 
   return (
     <fieldset className="model-settings">
-      <legend>Model provider</legend>
+      <legend>{t('model.title')}</legend>
       <p className="muted">
         {saved && 'hasKey' in saved
-          ? `Connected to ${saved.model}. The key is stored encrypted and is not shown again.`
-          : 'Choose the provider your conversations will use.'}
+          ? t('model.connected', { model: saved.model })
+          : t('model.choose')}
       </p>
       <label className="field">
-        <span>Base URL</span>
+        <span>{t('model.baseUrl')}</span>
         <input
           value={baseUrl}
           onChange={(e) => setBaseUrl(e.target.value)}
@@ -90,7 +92,7 @@ export function ModelSettings() {
         />
       </label>
       <label className="field">
-        <span>Model</span>
+        <span>{t('model.model')}</span>
         <input
           value={model}
           onChange={(e) => setModel(e.target.value)}
@@ -99,15 +101,15 @@ export function ModelSettings() {
         />
       </label>
       <label className="field">
-        <span>API key</span>
+        <span>{t('model.apiKey')}</span>
         <input
           type="password"
           value={apiKey}
           onChange={(e) => setApiKey(e.target.value)}
           placeholder={
             saved && 'hasKey' in saved
-              ? 'Enter a new key to replace it'
-              : 'Paste your key'
+              ? t('model.replaceKey')
+              : t('model.pasteKey')
           }
           autoComplete="new-password"
           spellCheck={false}
@@ -120,14 +122,14 @@ export function ModelSettings() {
           onClick={test}
           disabled={!apiKey || status?.tone === 'busy'}
         >
-          Test connection
+          {t('model.testConnection')}
         </button>
         <button
           type="button"
           onClick={save}
           disabled={!apiKey || status?.tone === 'busy'}
         >
-          Save
+          {t('common.save')}
         </button>
       </div>
       {status && (

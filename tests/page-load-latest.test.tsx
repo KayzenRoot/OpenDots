@@ -11,6 +11,9 @@ vi.mock('../src/client/PageConversation', () => ({
   PageConversation: () => null,
 }));
 import { PageDocument } from '../src/client/PageDocument';
+import { setLocalePreference } from '../src/client/i18n';
+// These assertions cover the English copy; pin it regardless of the machine.
+setLocalePreference('en');
 const page = {
   id: 'a',
   spaceId: 'space',

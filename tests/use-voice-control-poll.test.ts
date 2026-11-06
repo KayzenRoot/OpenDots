@@ -2,6 +2,9 @@ import { createElement } from 'react';
 import { act, create, type ReactTestRenderer } from 'react-test-renderer';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { useVoice } from '../src/client/useVoice';
+import { setLocalePreference } from '../src/client/i18n';
+// This assertion covers the English error copy; pin it regardless of the machine.
+setLocalePreference('en');
 const api = vi.hoisted(() => vi.fn());
 vi.mock('../src/client/api', () => ({ api, authHeaders: () => ({}) }));
 let voice: ReturnType<typeof useVoice>;

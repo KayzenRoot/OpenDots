@@ -1,3 +1,5 @@
+import { t } from './i18n';
+
 let token = sessionStorage.getItem('nexbot-token') ?? '';
 export function setToken(value: string) {
   token = value;
@@ -31,12 +33,12 @@ export async function api<T>(
   });
   const data = (await response
     .json()
-    .catch(() => ({ error: 'Server returned an unreadable response.' }))) as {
+    .catch(() => ({ error: t('api.unreadable') }))) as {
     error?: string;
   };
   if (!response.ok)
     throw new ApiError(
-      data.error ?? `Request failed (${response.status}).`,
+      data.error ?? t('api.requestFailed', { status: response.status }),
       response.status,
     );
   return data as T;

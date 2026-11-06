@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { ArrowUpRight, FileText, Monitor, Terminal } from 'lucide-react';
 import { z } from 'zod';
 import { api } from './api';
+import { useTranslation, type MessageKey } from './i18n';
 
 const screenSchema = z.object({
   base64: z
@@ -17,19 +18,19 @@ export type ComputerToolRenderProps = {
   args?: unknown;
   result?: unknown;
 };
-const labels: Record<string, string> = {
-  navigate: 'Opening website',
-  snapshot: 'Inspecting browser',
-  read: 'Reading page',
-  screenshot: 'Viewing browser',
-  click: 'Clicking in browser',
-  type: 'Typing in browser',
-  key: 'Using keyboard',
-  scroll: 'Scrolling page',
-  files_write: 'Saving file',
-  files_read: 'Reading file',
-  files_list: 'Listing files',
-  exec: 'Running terminal command',
+const labelKeys: Record<string, MessageKey> = {
+  navigate: 'computerTool.navigate',
+  snapshot: 'computerTool.snapshot',
+  read: 'computerTool.read',
+  screenshot: 'computerTool.screenshot',
+  click: 'computerTool.click',
+  type: 'computerTool.type',
+  key: 'computerTool.key',
+  scroll: 'computerTool.scroll',
+  files_write: 'computerTool.filesWrite',
+  files_read: 'computerTool.filesRead',
+  files_list: 'computerTool.filesList',
+  exec: 'computerTool.exec',
 };
 export function computerToolResult(raw: unknown): Record<string, unknown> {
   if (typeof raw === 'string') {
@@ -60,9 +61,12 @@ export function ComputerToolCard({
   running: boolean;
   onExpand?: () => void;
 }) {
+  const { t } = useTranslation();
   const [screen, setScreen] = useState<z.infer<typeof screenSchema>>();
   const [screenError, setScreenError] = useState('');
   const action = name.replace(/^computer_/, '');
+  const label = labelKeys[action] ? t(labelKeys[action]) : action;
+  const headerLabel = labelKeys[action] ? label : t('computerTool.fallback');
   const data = computerToolResult(result);
   const parameters = computerToolResult(args);
   const interrupted =
@@ -81,14 +85,14 @@ export function ComputerToolCard({
     !!error ||
     (typeof data.exitCode === 'number' && data.exitCode !== 0);
   const state = interrupted
-    ? 'Interrupted'
+    ? t('computerTool.stateInterrupted')
     : failed
-      ? 'Needs attention'
+      ? t('computerTool.stateFailed')
       : complete
-        ? 'Finished'
+        ? t('computerTool.stateFinished')
         : running
-          ? 'Working'
-          : 'Interrupted';
+          ? t('computerTool.stateWorking')
+          : t('computerTool.stateInterrupted');
   const detail =
     typeof parameters.url === 'string'
       ? parameters.url
@@ -121,7 +125,7 @@ export function ComputerToolCard({
             setScreenError(
               cause instanceof Error
                 ? cause.message
-                : 'Computer preview unavailable.',
+                : t('computerTool.previewUnavailable'),
             );
           }
         }
@@ -144,18 +148,18 @@ export function ComputerToolCard({
   return (
     <section
       className={`inline-computer ${showScreen ? 'with-screen' : ''}`}
-      aria-label={`${dotName} computer: ${labels[action] ?? action}`}
+      aria-label={t('computerTool.aria', { name: dotName, action: label })}
     >
       <header>
         <Icon size={16} aria-hidden="true" />
-        <strong>{labels[action] ?? 'Using computer'}</strong>
+        <strong>{headerLabel}</strong>
         <span className={failed ? 'tool-state failed' : 'tool-state'}>
           {state}
         </span>
         {onExpand && (
           <button
             type="button"
-            aria-label={`Expand ${dotName} computer`}
+            aria-label={t('computerTool.expand', { name: dotName })}
             onClick={onExpand}
           >
             <ArrowUpRight size={16} />
@@ -170,7 +174,7 @@ export function ComputerToolCard({
       {error && <p role="alert">{error}</p>}
       {interruption && <p role="status">{interruption}</p>}
       {action === 'exec' && complete && typeof data.stdout === 'string' && (
-        <pre aria-label="Computer terminal output">
+        <pre aria-label={t('computerTool.terminalOutput')}>
           {data.stdout.slice(0, 4000)}
         </pre>
       )}
@@ -182,18 +186,18 @@ export function ComputerToolCard({
         <div className="inline-computer-preview">
           <div className="inline-computer-caption">
             <span className="live-indicator" />
-            {dotName}’s computer · Current browser view
+            {t('computerTool.currentView', { name: dotName })}
           </div>
           {screen && (
             <img
               src={`data:image/png;base64,${screen.base64}`}
-              alt={`Current browser view from ${dotName}'s computer`}
+              alt={t('computerTool.screenAlt', { name: dotName })}
             />
           )}
           {screenError ? (
             <p role="status">{screenError}</p>
           ) : (
-            !screen && <p role="status">Connecting to computer…</p>
+            !screen && <p role="status">{t('computerTool.connecting')}</p>
           )}
           {screen && <div className="inline-computer-url">{screen.url}</div>}
         </div>

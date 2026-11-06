@@ -11,6 +11,7 @@ import {
 import { Mascot } from './Mascot';
 import type { Dot } from '../shared/types';
 import type { useVoice } from './useVoice';
+import { useTranslation } from './i18n';
 
 export function CallView({
   dot,
@@ -19,6 +20,7 @@ export function CallView({
   dot: Dot;
   voice: ReturnType<typeof useVoice>;
 }) {
+  const { t } = useTranslation();
   const [minimized, setMinimized] = useState(false);
   const [now, setNow] = useState(Date.now());
   useEffect(() => {
@@ -33,28 +35,28 @@ export function CallView({
   const duration = `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}`;
   const label =
     voice.status === 'connecting'
-      ? 'Connecting…'
+      ? t('callView.connecting')
       : voice.status === 'ending'
-        ? 'Saving call…'
+        ? t('callView.saving')
         : voice.muted
-          ? 'Microphone muted'
+          ? t('callView.muted')
           : voice.phase === 'speaking'
-            ? `${dot.name} is speaking`
+            ? t('callView.speaking', { name: dot.name })
             : voice.phase === 'thinking'
-              ? 'Working on it…'
-              : 'Listening';
+              ? t('callView.thinking')
+              : t('callView.listening');
   return (
     <section
       className={`call-view ${minimized ? 'minimized' : ''}`}
-      aria-label={`Voice call with ${dot.name}`}
+      aria-label={t('callView.aria', { name: dot.name })}
     >
       <div className="call-heading">
         <span>
-          <span className="call-live-dot" /> Voice call
+          <span className="call-live-dot" /> {t('callView.voiceCall')}
         </span>
         <button
           className="call-minimize"
-          aria-label={minimized ? 'Expand call view' : 'Minimize call view'}
+          aria-label={minimized ? t('callView.expand') : t('callView.minimize')}
           onClick={() => setMinimized(!minimized)}
         >
           {minimized ? <Maximize2 size={18} /> : <ChevronDown size={20} />}
@@ -63,7 +65,7 @@ export function CallView({
       <div className={`call-persona ${voice.phase}`}>
         <Mascot identity={dot.id} name={dot.name} />
         <h2>{dot.name}</h2>
-        <span className="call-timer" aria-label="Call duration">
+        <span className="call-timer" aria-label={t('callView.duration')}>
           {duration}
         </span>
         <p role="status">{label}</p>
@@ -72,13 +74,13 @@ export function CallView({
         <div className="call-caption" aria-live="polite">
           {voice.userCaption && (
             <p className="call-user-caption">
-              <small>You</small>
+              <small>{t('callView.you')}</small>
               {voice.userCaption}
             </p>
           )}
           <p>
             <small>{dot.name}</small>
-            {voice.caption || 'Speak naturally. Your Dot is here with you.'}
+            {voice.caption || t('callView.placeholder')}
           </p>
         </div>
       )}
@@ -90,39 +92,41 @@ export function CallView({
       <div className="call-controls">
         <button
           aria-label={
-            voice.speakerMuted ? 'Enable call audio' : 'Mute call audio'
+            voice.speakerMuted
+              ? t('callView.enableAudio')
+              : t('callView.muteAudio')
           }
           aria-pressed={voice.speakerMuted}
           onClick={voice.toggleSpeaker}
           disabled={voice.status !== 'active'}
         >
           <span>{voice.speakerMuted ? <VolumeX /> : <Volume2 />}</span>
-          <small>Speaker</small>
+          <small>{t('callView.speaker')}</small>
         </button>
         <button
           className="call-end"
-          aria-label="End voice call"
+          aria-label={t('callView.endCall')}
           onClick={() => void voice.end()}
           disabled={voice.status === 'ending'}
         >
           <span>
             <PhoneOff />
           </span>
-          <small>End</small>
+          <small>{t('common.end')}</small>
         </button>
         <button
-          aria-label={voice.muted ? 'Unmute microphone' : 'Mute microphone'}
+          aria-label={voice.muted ? t('callView.unmute') : t('callView.mute')}
           aria-pressed={voice.muted}
           onClick={voice.toggleMute}
           disabled={voice.status !== 'active'}
         >
           <span>{voice.muted ? <MicOff /> : <Mic />}</span>
-          <small>{voice.muted ? 'Unmute' : 'Mute'}</small>
+          <small>
+            {voice.muted ? t('callView.unmuteShort') : t('callView.muteShort')}
+          </small>
         </button>
       </div>
-      {!minimized && (
-        <p className="call-footer">Text and voice share this conversation</p>
-      )}
+      {!minimized && <p className="call-footer">{t('callView.footer')}</p>}
     </section>
   );
 }

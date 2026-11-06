@@ -93,6 +93,9 @@ vi.mock('../src/client/useVoice', () => ({
 }));
 
 import { Chat } from '../src/client/Chat';
+import { setLocalePreference } from '../src/client/i18n';
+// These assertions cover the English copy; pin it regardless of the machine.
+setLocalePreference('en');
 
 class ReplayAgent extends AbstractAgent {
   events: BaseEvent[] = [];

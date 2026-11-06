@@ -7,6 +7,9 @@ import {
   isDeletedReview,
 } from '../src/client/page-review-decision';
 import { PageReviewCard } from '../src/client/PageReviewCard';
+import { setLocalePreference } from '../src/client/i18n';
+// These assertions cover the English copy; pin it regardless of the machine.
+setLocalePreference('en');
 
 beforeEach(() => {
   vi.mocked(api).mockReset();

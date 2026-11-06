@@ -12,6 +12,7 @@ import {
 } from './page-review-decision';
 import { openPageLink } from './page-navigation';
 import type { ReviewedPage } from '../server/pages';
+import { useTranslation } from './i18n';
 export function PageReviewCard({
   args,
   status,
@@ -28,6 +29,7 @@ export function PageReviewCard({
   toolCallId: string;
   onSaved: () => void;
 }) {
+  const { t } = useTranslation();
   const draft = pageReviewSchema.safeParse(args);
   const [savedPage, setSavedPage] = useState<ReviewedPage>();
   const [deletedReview, setDeletedReview] = useState<DeletedReview>();
@@ -59,9 +61,7 @@ export function PageReviewCard({
       .catch((cause) => {
         if (active)
           setError(
-            cause instanceof Error
-              ? cause.message
-              : 'Could not restore this review.',
+            cause instanceof Error ? cause.message : t('review.restoreFailed'),
           );
       });
     return () => {
@@ -105,47 +105,43 @@ export function PageReviewCard({
       });
     } catch (cause) {
       setReceiptReady(false);
-      setError(
-        cause instanceof Error
-          ? cause.message
-          : 'Could not save the approved draft.',
-      );
+      setError(cause instanceof Error ? cause.message : t('review.saveFailed'));
     } finally {
       pending.current = false;
       setBusy(false);
     }
   };
   return (
-    <section className="page-review-card" aria-label="Review page draft">
+    <section className="page-review-card" aria-label={t('review.aria')}>
       <header>
         <FileText size={17} />
         <strong>
           {conflict
-            ? 'Review changed'
+            ? t('review.changed')
             : removed
-              ? 'Saved, then deleted'
+              ? t('review.savedThenDeleted')
               : saved
-                ? 'Saved to your Space'
+                ? t('review.savedToSpace')
                 : !receiptReady
-                  ? 'Checking saved review…'
+                  ? t('review.checking')
                   : finished
-                    ? 'Review ended'
-                    : 'Ready for your review'}
+                    ? t('review.ended')
+                    : t('review.ready')}
         </strong>
         <span>
           {conflict
-            ? 'Needs new review'
+            ? t('review.needsNewReview')
             : saved
-              ? 'Approved'
+              ? t('review.approved')
               : !receiptReady
-                ? 'Checking'
+                ? t('review.checkingShort')
                 : finished
-                  ? 'Not saved'
-                  : 'You decide'}
+                  ? t('review.notSaved')
+                  : t('review.youDecide')}
         </span>
       </header>
       <div className="page-review-body">
-        <h3>{draft.success ? draft.data.title : 'Preparing your draft…'}</h3>
+        <h3>{draft.success ? draft.data.title : t('review.preparing')}</h3>
         {draft.success && (
           <ReactMarkdown
             remarkPlugins={[remarkGfm]}
@@ -162,19 +158,14 @@ export function PageReviewCard({
           </ReactMarkdown>
         )}
       </div>
-      {conflict && (
-        <p role="alert">
-          This review was saved with a different draft. Start a new review for
-          the changed draft.
-        </p>
-      )}
+      {conflict && <p role="alert">{t('review.conflict')}</p>}
       {error && <p role="alert">{error}</p>}
       {!receiptReady && error && (
         <button
           type="button"
           onClick={() => setRestoreAttempt((attempt) => attempt + 1)}
         >
-          Retry review
+          {t('review.retry')}
         </button>
       )}
       <footer>
@@ -188,7 +179,7 @@ export function PageReviewCard({
               )
             }
           >
-            {conflict ? 'Open saved page' : 'Open page'}{' '}
+            {conflict ? t('review.openSavedPage') : t('review.openPage')}{' '}
             <ArrowUpRight size={15} />
           </button>
         )}
@@ -202,10 +193,10 @@ export function PageReviewCard({
             >
               <Check size={15} />
               {busy
-                ? 'Saving…'
+                ? t('common.saving')
                 : saved
-                  ? 'Continue conversation'
-                  : 'Approve & save'}
+                  ? t('review.continue')
+                  : t('review.approveSave')}
             </button>
             {!saved && (
               <button
@@ -213,7 +204,7 @@ export function PageReviewCard({
                 disabled={busy}
                 onClick={() => void decide(false)}
               >
-                Decline
+                {t('review.decline')}
               </button>
             )}
           </>
@@ -221,10 +212,10 @@ export function PageReviewCard({
         {!saved && !conflict && (
           <small>
             {!receiptReady
-              ? 'Checking whether this draft was already saved.'
+              ? t('review.checkingNote')
               : finished
-                ? 'No page was saved.'
-                : 'Nothing is saved until you approve.'}
+                ? t('review.noPageSaved')
+                : t('review.nothingSavedNote')}
           </small>
         )}
       </footer>

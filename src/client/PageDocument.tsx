@@ -21,6 +21,7 @@ import { usePageAutosave } from './editor/use-page-autosave';
 import { inspectMarkdown } from './editor/markdown';
 import { DocumentMenu } from './editor/DocumentMenu';
 import { PageConversation } from './PageConversation';
+import { useTranslation } from './i18n';
 const RichEditor = lazy(() => import('./editor/RichEditor'));
 export function PageDocument({
   page,
@@ -55,6 +56,7 @@ export function PageDocument({
   onSettings: () => void;
   onCreateDot: () => void;
 }) {
+  const { t } = useTranslation();
   const { controller, state } = usePageAutosave(page, onSaved);
   const draft = state.draft!;
   const [source, setSource] = useState(false);
@@ -107,12 +109,7 @@ export function PageDocument({
     URL.revokeObjectURL(url);
   };
   const latest = async () => {
-    if (
-      !window.confirm(
-        'Load the latest saved page and replace this draft? Download your draft first if you want to keep it.',
-      )
-    )
-      return;
+    if (!window.confirm(t('doc.loadLatestConfirm'))) return;
     const confirmedDraft = controller.getSnapshot().draft;
     try {
       const latestPage = await api<Page>(
@@ -122,18 +119,14 @@ export function PageDocument({
       const edited = controller.getSnapshot().draft !== confirmedDraft;
       controller.receive(latestPage);
       if (edited) {
-        setNotice(
-          'Your draft changed while loading. Choose Load latest again to replace it.',
-        );
+        setNotice(t('doc.draftChanged'));
         return;
       }
       controller.useLatest();
       setNotice('');
     } catch (error) {
       setNotice(
-        error instanceof Error
-          ? error.message
-          : 'Could not load the latest page. Your draft is unchanged.',
+        error instanceof Error ? error.message : t('doc.loadLatestFailed'),
       );
     }
   };
@@ -153,28 +146,28 @@ export function PageDocument({
   }
   const status =
     state.status === 'saving'
-      ? 'Saving…'
+      ? t('doc.statusSaving')
       : state.status === 'saved'
-        ? 'All changes saved'
+        ? t('doc.statusSaved')
         : state.status === 'dirty'
-          ? 'Unsaved changes'
+          ? t('doc.statusDirty')
           : state.status === 'conflict'
-            ? 'Changes need review'
-            : 'Could not save';
+            ? t('doc.statusConflict')
+            : t('doc.statusError');
   return (
     <section
       className={`document-session ${chatOpen ? 'chat-visible' : ''}`}
-      aria-label="Document workspace"
+      aria-label={t('doc.workspace')}
     >
       <div className="document-column">
         <header className="document-topbar">
           <button className="document-back" onClick={onHome}>
             <ArrowLeft size={16} />
-            <span>All pages</span>
+            <span>{t('doc.allPages')}</span>
           </button>
           <button
             className="document-icon"
-            aria-label="Toggle page outline"
+            aria-label={t('doc.toggleOutline')}
             onClick={onOutline}
           >
             <PanelLeft size={17} />
@@ -194,38 +187,40 @@ export function PageDocument({
           <DocumentMenu
             items={[
               {
-                label: 'Save now · ⌘/Ctrl S',
+                label: t('doc.menuSaveNow'),
                 action: () => void controller.flush(true),
               },
               {
-                label: sourceMode ? 'Visual editor' : 'Markdown source',
+                label: sourceMode
+                  ? t('doc.menuVisualEditor')
+                  : t('doc.menuMarkdownSource'),
                 action: () => {
                   if (sourceMode && !safety.supported) {
-                    setNotice(
-                      safety.reason ?? 'This document needs source mode.',
-                    );
+                    setNotice(safety.reason ?? t('doc.needsSourceMode'));
                     return;
                   }
                   setSource(!sourceMode);
                 },
               },
-              { label: 'Move page', action: () => setMove(!move) },
-              { label: 'New subpage', action: onSubpage },
-              { label: 'Download Markdown', action: download },
+              { label: t('doc.menuMovePage'), action: () => setMove(!move) },
+              { label: t('doc.menuNewSubpage'), action: onSubpage },
+              { label: t('doc.menuDownload'), action: download },
               ...(page.sourceThreadId
                 ? [
                     {
-                      label: 'Open source conversation',
+                      label: t('doc.menuOpenSource'),
                       action: () => onThread(page.sourceThreadId!),
                     },
                   ]
                 : []),
               {
-                label: 'Delete page',
+                label: t('doc.menuDelete'),
                 action: async () => {
                   if (
                     !window.confirm(
-                      `Delete "${draft.title || 'Untitled'}"? This can't be undone. Any subpages will move to this page's parent.`,
+                      t('doc.deleteConfirm', {
+                        title: draft.title || t('doc.untitled'),
+                      }),
                     )
                   )
                     return;
@@ -248,7 +243,7 @@ export function PageDocument({
                     setNotice(
                       error instanceof Error
                         ? error.message
-                        : 'Could not delete page.',
+                        : t('doc.deleteFailed'),
                     );
                   }
                 },
@@ -267,12 +262,14 @@ export function PageDocument({
                 <div>
                   {state.status === 'error' && (
                     <button onClick={() => void controller.flush(true)}>
-                      Retry save
+                      {t('doc.retrySave')}
                     </button>
                   )}
-                  <button onClick={download}>Download draft</button>
+                  <button onClick={download}>{t('doc.downloadDraft')}</button>
                   {state.status === 'conflict' && (
-                    <button onClick={() => void latest()}>Load latest</button>
+                    <button onClick={() => void latest()}>
+                      {t('doc.loadLatest')}
+                    </button>
                   )}
                 </div>
               </div>
@@ -280,7 +277,9 @@ export function PageDocument({
             {notice && (
               <div className="document-notice" role="status">
                 {notice}
-                <button onClick={() => setNotice('')}>Dismiss</button>
+                <button onClick={() => setNotice('')}>
+                  {t('common.dismiss')}
+                </button>
               </div>
             )}
             {move && (
@@ -291,16 +290,16 @@ export function PageDocument({
                 }}
               >
                 <label>
-                  Move under
+                  {t('doc.moveUnder')}
                   <select
                     autoFocus
-                    aria-label="Parent page"
+                    aria-label={t('doc.parentPage')}
                     value={draft.parentId ?? ''}
                     onChange={(e) =>
                       controller.edit({ parentId: e.target.value || null })
                     }
                   >
-                    <option value="">Space root</option>
+                    <option value="">{t('doc.spaceRoot')}</option>
                     {pages
                       .filter((p) => !descendants.has(p.id))
                       .map((p) => (
@@ -310,13 +309,15 @@ export function PageDocument({
                       ))}
                   </select>
                 </label>
-                <button onClick={() => setMove(false)}>Done</button>
+                <button onClick={() => setMove(false)}>
+                  {t('common.done')}
+                </button>
               </div>
             )}
             <input
               className="document-title"
-              aria-label="Page title"
-              placeholder="Untitled page"
+              aria-label={t('doc.pageTitle')}
+              placeholder={t('doc.untitledPage')}
               maxLength={160}
               value={draft.title}
               onChange={(event) =>
@@ -327,14 +328,14 @@ export function PageDocument({
               <>
                 <div className="source-mode-label">
                   <FileCode2 size={15} />
-                  <span>Markdown source</span>
+                  <span>{t('doc.markdownSource')}</span>
                 </div>
                 {!safety.supported && (
                   <p className="source-mode-reason">{safety.reason}</p>
                 )}
                 <textarea
                   className="document-source"
-                  aria-label="Page Markdown"
+                  aria-label={t('doc.pageMarkdown')}
                   spellCheck={false}
                   value={draft.content}
                   maxLength={100000}
@@ -345,7 +346,9 @@ export function PageDocument({
               </>
             ) : (
               <Suspense
-                fallback={<div className="editor-loading">Loading editor…</div>}
+                fallback={
+                  <div className="editor-loading">{t('doc.loadingEditor')}</div>
+                }
               >
                 <RichEditor
                   value={draft.content}

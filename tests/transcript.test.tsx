@@ -1,10 +1,14 @@
-import { expect, it } from 'vitest';
+import { expect, it, afterEach } from 'vitest';
 import { renderToStaticMarkup } from 'react-dom/server';
 import {
   ChatTranscript,
   isInternalVoiceReceipt,
 } from '../src/client/ChatTranscript';
 import type { Message } from '@ag-ui/core';
+import { setLocalePreference } from '../src/client/i18n';
+// These assertions cover the English copy; pin it regardless of the machine.
+setLocalePreference('en');
+afterEach(() => setLocalePreference('en'));
 it('keeps call receipts between the anchored message and later conversation turns', () => {
   const html = renderToStaticMarkup(
     <ChatTranscript
@@ -32,6 +36,37 @@ it('keeps call receipts between the anchored message and later conversation turn
   expect(html.indexOf('Call ended')).toBeLessThan(
     html.indexOf('Later message'),
   );
+});
+
+it('renders the receipt and the scheduled label in Brazilian Portuguese', () => {
+  setLocalePreference('pt-BR');
+  const html = renderToStaticMarkup(
+    <ChatTranscript
+      messages={[
+        { id: 'before', role: 'user', content: 'Antes da chamada' },
+        {
+          id: 'nexbot:scheduled_task:run-1',
+          role: 'user',
+          content: 'Pedido agendado',
+        },
+      ]}
+      calls={[
+        {
+          id: 'call',
+          threadId: 'thread',
+          status: 'ended',
+          startedAt: 1000,
+          endedAt: 6000,
+          transcript: '',
+          error: null,
+          anchorMessageId: 'before',
+        },
+      ]}
+    />,
+  );
+  expect(html).toContain('Chamada encerrada');
+  expect(html).toContain('Agendada');
+  expect(html).not.toContain('Call ended');
 });
 
 it('renders tool-only assistant messages inline between chat turns without printing tool JSON', () => {

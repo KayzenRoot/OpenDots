@@ -6,17 +6,29 @@
 
 **An open-source template for persistent AI agents, each with its own computer. Available on Web and Mobile.**
 
-Built with [CopilotKit](https://github.com/CopilotKit/CopilotKit) and [AG-UI](https://docs.ag-ui.com/introduction). · [Get started](#get-started) · [Overview](#overview) · [Architecture](#architecture) · [Features](#features) · [Contributing](CONTRIBUTING.md)
+Built on the open [AG-UI](https://docs.ag-ui.com/introduction) protocol, with the MIT-licensed CopilotKit runtime and React client as local libraries. · [Get started](#get-started) · [Overview](#overview) · [Architecture](#architecture) · [Features](#features) · [Contributing](CONTRIBUTING.md)
 
-[![CI](https://github.com/CopilotKit/OpenDots/actions/workflows/ci.yml/badge.svg)](https://github.com/CopilotKit/OpenDots/actions/workflows/ci.yml)
+[![CI](https://github.com/KayzenRoot/nexbot/actions/workflows/ci.yml/badge.svg)](https://github.com/KayzenRoot/nexbot/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](./LICENSE)
-![Alpha](https://img.shields.io/badge/status-alpha-orange.svg)
 
-<a href="https://trendshift.io/repositories/275323" target="_blank"><img src="https://trendshift.io/api/badge/trendshift/repositories/275323/daily?language=TypeScript" alt="CopilotKit/OpenDots | Trendshift #2 TypeScript Repository Of The Day" width="250" height="55"/></a>
+**NexBot is a self-hosted fork of [OpenDots](https://github.com/CopilotKit/OpenDots).**
+It runs entirely on infrastructure you control: conversations live in your own
+PostgreSQL, the agent runtime runs locally, and **no CopilotKit account, API key or
+hosted service is required**. Point it at any OpenAI-compatible model provider —
+hosted or local (Ollama, vLLM, LM Studio).
 
-Host NexBot on your own infrastructure. Conversations require CopilotKit Intelligence: use the hosted service, the [local Docker evaluation](docs/SETUP.md#local-intelligence-evaluation), or a licensed [self-hosted deployment](https://docs.copilotkit.ai/intelligence/self-hosting). Clone this template and customize it however you want.
+Start here: [Local install](docs/fork/LOCAL-INSTALL.md) · [Customer guide](docs/fork/CUSTOMER-GUIDE.md) · [Server deployment](docs/fork/DEPLOYMENT.md) · [Architecture](docs/fork/ARCHITECTURE.md) · [Security audit](docs/fork/SECURITY-AUDIT.md) · [Production readiness](docs/fork/PRODUCTION-READINESS.md)
 
-[**Building on NexBot? Meet with the CopilotKit team →**](https://www.copilotkit.ai/talk-to-an-engineer?ref=nexbot_readme)
+> **What this fork changed.** The hosted CopilotKit Intelligence plane was replaced by a
+> PostgreSQL conversation store and a self-hosted AG-UI runtime (`CopilotSseRuntime` with a
+> local `LocalThreadEndpointRunner`); managed Slack channels were replaced by a self-hosted
+> Events API integration; Automatic Learning moved to a local skills store; and every
+> CopilotKit telemetry endpoint was removed. The MIT-licensed `@copilotkit/runtime` and
+> `@copilotkit/react-core` remain as local libraries driving the open AG-UI protocol — they
+> need no account and contact no CopilotKit host.
+>
+> **The sections below are upstream’s**, and they describe the original hosted design
+> wherever the two differ. For this fork, trust the `docs/fork/` guides above.
 
 </div>
 
