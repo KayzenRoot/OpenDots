@@ -21,3 +21,4 @@ data/
 
 # Compiled launcher (build with deployment/windows/build-launcher.cmd)
 deployment/windows/OpenDots.exe
+logs/
