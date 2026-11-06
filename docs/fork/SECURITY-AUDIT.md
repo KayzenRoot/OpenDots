@@ -67,9 +67,10 @@ remaining high is transitive and falls into F5–F7.
 
 ## Residual risks (not defects, but accepted)
 
-1. **No application-level rate limiting.** `/api/slack/events` and the owner API
-   rely on the reverse proxy and the owner token. A public deployment should add
-   request limits at the proxy.
+1. ~~No application-level rate limiting~~ **Addressed**: the public webhook is
+   capped per client and failed token attempts are capped too, both with a real
+   Retry-After. The limiter is in-process, so a multi-replica deployment needs a
+   shared store; the proxy should still impose its own limits.
 2. **Prompt-injected authority.** Page, web, MCP and Slack content reach the
    model as untrusted input. Tool permissions limit the blast radius, but no
    prompt-injection classifier is in place.

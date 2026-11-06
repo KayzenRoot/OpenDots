@@ -1,5 +1,15 @@
 import type { Platform } from './platform.js';
 export class VoiceService {
+  /**
+   * Realtime endpoint root. `VOICE_BASE_URL` allows a non-OpenAI gateway; the
+   * default keeps an existing deployment working unchanged.
+   */
+  private get voiceBase(): string {
+    return (
+      this.platform.config.voiceBaseUrl ?? 'https://api.openai.com'
+    ).replace(/\/$/, '');
+  }
+
   private jobs = new Map<
     string,
     {
@@ -110,11 +120,10 @@ export class VoiceService {
           tool_choice: 'auto',
         }),
       );
-      // LIMITATION (WORK-007): voice is pinned to OpenAI Realtime. Chat is
-      // provider-agnostic via OPENAI_BASE_URL, but this endpoint is not
-      // configurable yet, so voice requires an OpenAI key even when chat does not.
+      // VOICE_BASE_URL lets a non-OpenAI realtime gateway be used; it defaults
+      // to OpenAI so an existing deployment keeps working unchanged.
       const response = await this.transport(
-        'https://api.openai.com/v1/realtime/calls',
+        `${this.voiceBase}/v1/realtime/calls`,
         {
           method: 'POST',
           headers: { Authorization: `Bearer ${this.platform.config.voiceKey}` },
@@ -129,7 +138,7 @@ export class VoiceService {
         );
       const location = response.headers.get('location');
       const providerId = location
-        ? new URL(location, 'https://api.openai.com').pathname.match(
+        ? new URL(location, this.voiceBase).pathname.match(
             /^\/v1\/realtime\/calls\/([A-Za-z0-9_-]{1,200})$/,
           )?.[1]
         : undefined;
@@ -261,7 +270,7 @@ export class VoiceService {
     if (!providerId) return;
     try {
       const response = await this.transport(
-        `https://api.openai.com/v1/realtime/calls/${providerId}/hangup`,
+        `${this.voiceBase}/v1/realtime/calls/${providerId}/hangup`,
         {
           method: 'POST',
           headers: { Authorization: `Bearer ${this.platform.config.voiceKey}` },

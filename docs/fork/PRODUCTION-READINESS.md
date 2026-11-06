@@ -41,8 +41,9 @@ deployment needs.
 
 ## Recommended before the first paying customer
 
-1. **Rate limiting** at the reverse proxy. `/api/slack/events` is public by
-   design and authenticated only by its HMAC signature.
+1. ~~Rate limiting~~ **DONE**: the webhook is capped at 120 requests/minute per
+   client and failed token attempts at 40/minute, both with Retry-After. A
+   multi-replica deployment would still need a shared limiter.
 2. **Monitoring**: external uptime check against `/api/ready`, log shipping, and
    an alert on the watchdog log.
 3. **Documentation truth.** Upstream `docs/SETUP.md` still says CopilotKit
@@ -54,8 +55,8 @@ deployment needs.
 ## Product gaps, deliberately deferred
 
 - **Skills editor.** Skills live in PostgreSQL but there is no UI to manage them.
-- **Configurable voice.** Realtime is pinned to `api.openai.com`; chat is
-  provider-agnostic, voice is not.
+- ~~Configurable voice~~ **DONE**: `VOICE_BASE_URL` selects a non-OpenAI realtime
+  gateway; it defaults to OpenAI so nothing changes for an existing install.
 - **Multi-user auth.** One owner token per installation by design.
 
 ## On the visual work

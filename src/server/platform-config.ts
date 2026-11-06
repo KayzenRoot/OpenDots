@@ -71,6 +71,8 @@ export interface PlatformConfig extends WebConfig {
   browserUrl?: string;
   browserSecret?: string;
   composioApiKey?: string;
+  /** `VOICE_BASE_URL`: realtime endpoint root, for non-OpenAI gateways. */
+  voiceBaseUrl?: string;
   voiceKey?: string;
   voiceModel?: string;
   voiceName: string;
