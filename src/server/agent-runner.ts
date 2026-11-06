@@ -43,6 +43,23 @@ interface ThreadCache {
   messages: Message[];
 }
 
+/** What the run-completion hook needs to decide whether to learn. */
+export interface PersistedRunInfo {
+  threadId: string;
+  runId: string;
+  agentId: string;
+}
+
+export interface PostgresAgentRunnerOptions {
+  ownerId: string;
+  organizationId?: string;
+  /**
+   * Called after a run is committed, for the learning pass. It must not throw
+   * or block the run: errors are logged and the run always completes.
+   */
+  onRunPersisted?: (info: PersistedRunInfo) => void | Promise<void>;
+}
+
 const messageIdOf = (event: BaseEvent): string | undefined => {
   const value = (event as { messageId?: unknown }).messageId;
   return typeof value === 'string' ? value : undefined;
@@ -79,14 +96,16 @@ export class PostgresAgentRunner
   private readonly cache = new Map<string, ThreadCache>();
   private readonly ownerId: string;
   private readonly organizationId: string;
+  private readonly onRunPersisted?: PostgresAgentRunnerOptions['onRunPersisted'];
 
   constructor(
     private readonly conversations: ConversationStorage,
-    options: { ownerId: string; organizationId?: string },
+    options: PostgresAgentRunnerOptions,
   ) {
     super();
     this.ownerId = options.ownerId;
     this.organizationId = options.organizationId ?? '';
+    this.onRunPersisted = options.onRunPersisted;
   }
 
   /** Load the synchronous mirror from Postgres. Call once before serving. */
@@ -399,6 +418,11 @@ export class PostgresAgentRunner
           messages,
         });
         this.appendCache(request.threadId, compacted, messages);
+        await this.notifyPersisted({
+          threadId: request.threadId,
+          runId: request.input.runId,
+          agentId: request.agent.agentId ?? 'default',
+        });
       } catch (error) {
         logFailure('Persisting thread run', error);
       }
@@ -415,6 +439,20 @@ export class PostgresAgentRunner
     runSubject.complete();
     nextSubject.complete();
     if (store.subject === nextSubject) store.subject = null;
+  }
+
+  /**
+   * Offer the committed run to the learning hook. The hook is not allowed to
+   * break a run: a failure is logged here, under its own operation name, and
+   * the run keeps completing normally.
+   */
+  private async notifyPersisted(info: PersistedRunInfo): Promise<void> {
+    if (!this.onRunPersisted) return;
+    try {
+      await this.onRunPersisted(info);
+    } catch (error) {
+      logFailure('Post-run hook', error);
+    }
   }
 
   private appendCache(

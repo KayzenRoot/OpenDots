@@ -321,6 +321,12 @@ export const en = {
   'skills.reject': 'Reject',
   'skills.rejectReason': 'Why reject it?',
   'skills.rejectReasonPlaceholder': 'e.g. too specific to one conversation',
+  'skills.learning': 'Automatic learning',
+  'skills.learningToggle': 'Propose skills from conversations',
+  'skills.learningHelp':
+    'Off by default. When on, NexBot reviews long conversations after they end and suggests skills here for your approval. Each review uses your model budget.',
+  'skills.learningQuota': 'Reviews in the last hour: {used} of {limit}.',
+  'skills.proposalProvenance': 'Suggested automatically on {date}',
 
   // Connected-service action card
   'connectionAction.loadFailed': 'Could not load this request.',

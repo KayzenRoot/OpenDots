@@ -32,6 +32,9 @@ export class WorkspaceStore {
     for (const [table, column, definition] of [
       ['dots', 'learningContainerId', 'TEXT'],
       ['dots', 'skillDeliveryEnabled', 'INTEGER NOT NULL DEFAULT 0'],
+      // Work order WORK-021: the learning pass is opt-in per Dot and off by
+      // default, so existing Dots keep costing nothing until enabled.
+      ['dots', 'learningEnabled', 'INTEGER NOT NULL DEFAULT 0'],
       ['dots', 'appsAllowed', 'INTEGER NOT NULL DEFAULT 0'],
       ['dots', 'composioToolkits', "TEXT NOT NULL DEFAULT '[]'"],
       ['dots', 'composioSessionId', 'TEXT'],
@@ -122,6 +125,7 @@ export class WorkspaceStore {
         appsAllowed: !!row.appsAllowed,
         composioToolkits: JSON.parse(String(row.composioToolkits ?? '[]')),
         skillDeliveryEnabled: !!row.skillDeliveryEnabled,
+        learningEnabled: !!row.learningEnabled,
       })) as unknown as Dot[];
   }
   dot(id: string) {
@@ -138,6 +142,7 @@ export class WorkspaceStore {
     skillDeliveryEnabled = false,
     appsAllowed = false,
     composioToolkits: string[] = [],
+    learningEnabled = false,
   ): Dot {
     this.validateSpaceAccess(spaceId, spaceIds);
     validateLearningSettings(learningContainerId, skillDeliveryEnabled);
@@ -155,13 +160,14 @@ export class WorkspaceStore {
       composioPolicyHash: null,
       learningContainerId,
       skillDeliveryEnabled,
+      learningEnabled,
       createdAt: Date.now(),
     };
     this.db.exec('BEGIN');
     try {
       this.db
         .prepare(
-          'INSERT INTO dots (id, spaceId, name, instructions, researchAllowed, memoryAllowed, createdAt, learningContainerId, skillDeliveryEnabled, appsAllowed, composioToolkits) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+          'INSERT INTO dots (id, spaceId, name, instructions, researchAllowed, memoryAllowed, createdAt, learningContainerId, skillDeliveryEnabled, appsAllowed, composioToolkits, learningEnabled) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
         )
         .run(
           dot.id,
@@ -175,6 +181,7 @@ export class WorkspaceStore {
           +skillDeliveryEnabled,
           +appsAllowed,
           JSON.stringify(dot.composioToolkits),
+          +learningEnabled,
         );
       for (const id of dot.spaceIds)
         this.db.prepare('INSERT INTO dot_spaces VALUES (?, ?)').run(dot.id, id);
@@ -212,6 +219,7 @@ export class WorkspaceStore {
       spaceIds?: string[];
       learningContainerId?: string | null;
       skillDeliveryEnabled?: boolean;
+      learningEnabled?: boolean;
     },
   ): Dot {
     const current = this.dot(id);
@@ -225,12 +233,14 @@ export class WorkspaceStore {
         : patch.learningContainerId;
     const skillDeliveryEnabled =
       patch.skillDeliveryEnabled ?? current.skillDeliveryEnabled ?? false;
+    const learningEnabled =
+      patch.learningEnabled ?? current.learningEnabled ?? false;
     validateLearningSettings(learningContainerId, skillDeliveryEnabled);
     this.db.exec('BEGIN');
     try {
       this.db
         .prepare(
-          'UPDATE dots SET name=?, instructions=?, researchAllowed=?, memoryAllowed=?, learningContainerId=?, skillDeliveryEnabled=?, appsAllowed=?, composioToolkits=? WHERE id=?',
+          'UPDATE dots SET name=?, instructions=?, researchAllowed=?, memoryAllowed=?, learningContainerId=?, skillDeliveryEnabled=?, appsAllowed=?, composioToolkits=?, learningEnabled=? WHERE id=?',
         )
         .run(
           patch.name,
@@ -241,6 +251,7 @@ export class WorkspaceStore {
           +skillDeliveryEnabled,
           +patch.appsAllowed,
           JSON.stringify([...new Set(patch.composioToolkits)].sort()),
+          +learningEnabled,
           id,
         );
       this.db
@@ -254,6 +265,18 @@ export class WorkspaceStore {
       this.db.exec('ROLLBACK');
       throw error;
     }
+    return this.dot(id)!;
+  }
+  /**
+   * Turn the automatic learning pass on or off for one Dot. Kept as a narrow
+   * operation so the Skills section can toggle it without resubmitting the
+   * whole Dot form.
+   */
+  setLearningEnabled(id: string, enabled: boolean): Dot {
+    if (!this.dot(id)) throw new Error('Dot not found.');
+    this.db
+      .prepare('UPDATE dots SET learningEnabled=? WHERE id=?')
+      .run(+enabled, id);
     return this.dot(id)!;
   }
   saveComposioSession(id: string, sessionId: string, policyHash: string) {

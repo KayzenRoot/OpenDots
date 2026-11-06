@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { Hono } from 'hono';
 import { WorkspaceStore } from '../src/server/workspace.js';
+import { LEARNING_PASSES_PER_HOUR } from '../src/server/learning-pass.js';
 import { skillRoutes, type SkillCatalog } from '../src/server/skill-routes.js';
 import type {
   SkillRecord,
@@ -16,6 +17,8 @@ import type {
  */
 class MemoryCatalog implements SkillCatalog {
   private rows = new Map<string, SkillRecord>();
+  /** Number of passes recorded per Dot; a test seeds it directly. */
+  readonly passes = new Map<string, number>();
   private key(dotId: string, name: string) {
     return `${dotId}\u0000${name}`;
   }
@@ -43,6 +46,9 @@ class MemoryCatalog implements SkillCatalog {
           revision: existing.revision + 1,
           status: 'approved',
           rejectionReason: null,
+          source: 'manual',
+          conversationId: null,
+          model: null,
           updatedAt: now,
         }
       : {
@@ -54,6 +60,9 @@ class MemoryCatalog implements SkillCatalog {
           enabled: input.enabled ?? true,
           status: 'approved',
           rejectionReason: null,
+          source: 'manual',
+          conversationId: null,
+          model: null,
           createdAt: now,
           updatedAt: now,
         };
@@ -94,6 +103,9 @@ class MemoryCatalog implements SkillCatalog {
   async deleteSkill(dotId: string, name: string) {
     return this.rows.delete(this.key(dotId, name));
   }
+  async countPassesSince(dotId: string) {
+    return this.passes.get(dotId) ?? 0;
+  }
   /** Test helper: plant a row with an explicit status. */
   seed(
     dotId: string,
@@ -111,6 +123,9 @@ class MemoryCatalog implements SkillCatalog {
       enabled: true,
       status,
       rejectionReason: null,
+      source: status === 'approved' ? 'manual' : 'learning',
+      conversationId: status === 'approved' ? null : 'thread-1',
+      model: status === 'approved' ? null : 'test-model',
       createdAt: now,
       updatedAt: now,
     });
@@ -124,7 +139,14 @@ const setup = () => {
   const dotB = workspace.createDot(spaceId, 'B', '', true, true).id;
   const catalog = new MemoryCatalog();
   const app = new Hono().route('/api', skillRoutes(workspace, catalog));
-  return { app, catalog, dotA, dotB, close: () => workspace.close() };
+  return {
+    app,
+    catalog,
+    dotA,
+    dotB,
+    workspace,
+    close: () => workspace.close(),
+  };
 };
 
 const request = (method: string, body?: unknown): RequestInit => ({
@@ -437,6 +459,88 @@ describe('skill routes', () => {
       );
       expect(second.status).toBe(200);
       expect(await json(second)).toEqual({ ok: true, deleted: false });
+    } finally {
+      f.close();
+    }
+  });
+
+  it('exposes and toggles automatic learning per Dot', async () => {
+    const f = setup();
+    try {
+      const initial = await json(
+        await f.app.request(`/api/learning?dotId=${f.dotA}`),
+      );
+      expect(initial).toEqual({
+        enabled: false,
+        passesLastHour: 0,
+        passesPerHour: LEARNING_PASSES_PER_HOUR,
+      });
+
+      f.catalog.passes.set(f.dotA, 2);
+      const enabled = await json(
+        await f.app.request(
+          `/api/learning?dotId=${f.dotA}`,
+          request('PATCH', { enabled: true }),
+        ),
+      );
+      expect(enabled).toEqual({
+        enabled: true,
+        passesLastHour: 2,
+        passesPerHour: LEARNING_PASSES_PER_HOUR,
+      });
+      expect(f.workspace.dot(f.dotA)?.learningEnabled).toBe(true);
+      expect(f.workspace.dot(f.dotB)?.learningEnabled).toBe(false);
+
+      const disabled = await json(
+        await f.app.request(
+          `/api/learning?dotId=${f.dotA}`,
+          request('PATCH', { enabled: false }),
+        ),
+      );
+      expect(disabled.enabled).toBe(false);
+      expect(f.workspace.dot(f.dotA)?.learningEnabled).toBe(false);
+    } finally {
+      f.close();
+    }
+  });
+
+  it('validates the learning toggle strictly and requires a Dot', async () => {
+    const f = setup();
+    try {
+      for (const body of [{ enabled: 'yes' }, { enabled: true, extra: 1 }, {}])
+        expect(
+          (
+            await f.app.request(
+              `/api/learning?dotId=${f.dotA}`,
+              request('PATCH', body),
+            )
+          ).status,
+          JSON.stringify(body),
+        ).toBe(400);
+      expect((await f.app.request('/api/learning')).status).toBe(400);
+      expect((await f.app.request('/api/learning?dotId=missing')).status).toBe(
+        404,
+      );
+    } finally {
+      f.close();
+    }
+  });
+
+  it('reports where a proposal came from', async () => {
+    const f = setup();
+    try {
+      f.catalog.seed(f.dotA, 'suggested', 'A proposal body.');
+      const payload = await json(
+        await f.app.request(`/api/skills?dotId=${f.dotA}`),
+      );
+      expect(payload.proposals[0]).toMatchObject({
+        name: 'suggested',
+        status: 'proposed',
+        source: 'learning',
+        conversationId: 'thread-1',
+        model: 'test-model',
+      });
+      expect(typeof payload.proposals[0].createdAt).toBe('string');
     } finally {
       f.close();
     }

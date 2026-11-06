@@ -96,6 +96,11 @@ export interface Dot {
    */
   learningContainerId?: string | null;
   skillDeliveryEnabled?: boolean;
+  /**
+   * Opt-in for the automatic learning pass (WORK-021). Off by default because
+   * it spends the operator's model budget.
+   */
+  learningEnabled?: boolean;
 }
 export interface Conversation {
   id: string;

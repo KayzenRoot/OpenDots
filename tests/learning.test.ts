@@ -103,6 +103,39 @@ it('rejects invalid skill set IDs and delivery without one', () => {
   expect(ws.dot(dot.id)?.learningContainerId).toBeNull();
 });
 
+it('defaults automatic learning off per Dot, persists the opt-in, and preserves it', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'nexbot-autolearn-'));
+  cleanup.push(() => rmSync(dir, { recursive: true, force: true }));
+  const path = join(dir, 'workspace.sqlite');
+  const ws = new WorkspaceStore(path, 'owner');
+  let closed = false;
+  cleanup.push(() => {
+    if (!closed) ws.close();
+  });
+  const dot = ws.dots()[0];
+  expect(dot.learningEnabled).toBe(false);
+  expect(ws.setLearningEnabled(dot.id, true).learningEnabled).toBe(true);
+  expect(() => ws.setLearningEnabled('missing', true)).toThrow(
+    'Dot not found.',
+  );
+  ws.close();
+  closed = true;
+
+  const reopened = new WorkspaceStore(path, 'owner');
+  cleanup.push(() => reopened.close());
+  expect(reopened.dot(dot.id)?.learningEnabled).toBe(true);
+  // A Dot form save that does not carry the field must not switch it off.
+  reopened.updateDot(dot.id, {
+    name: dot.name,
+    instructions: dot.instructions,
+    researchAllowed: dot.researchAllowed,
+    memoryAllowed: dot.memoryAllowed,
+    appsAllowed: dot.appsAllowed,
+    composioToolkits: dot.composioToolkits,
+  });
+  expect(reopened.dot(dot.id)?.learningEnabled).toBe(true);
+});
+
 const skill = (name: string, body: string, revision = 1): DeliverableSkill => ({
   name,
   description: skillDescription(body, name),

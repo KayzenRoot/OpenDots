@@ -65,6 +65,37 @@ const migrations: readonly string[] = [
   ALTER TABLE skills
     ADD COLUMN IF NOT EXISTS rejection_reason TEXT;
   `,
+  // Version 4: the learning pass (WORK-021). Skills carry provenance so the
+  // editor can say where a proposal came from. `learning_state` marks each
+  // conversation with the message count already analysed, so the same
+  // messages are never sent to the model twice. `learning_passes` records one
+  // row per reflection pass; the hourly per-Dot limit is a count over this
+  // table, so it survives a restart instead of resetting to zero.
+  `
+  ALTER TABLE skills
+    ADD COLUMN IF NOT EXISTS source TEXT NOT NULL DEFAULT 'manual'
+      CHECK (source IN ('manual', 'learning'));
+  ALTER TABLE skills
+    ADD COLUMN IF NOT EXISTS conversation_id TEXT;
+  ALTER TABLE skills
+    ADD COLUMN IF NOT EXISTS model TEXT;
+  CREATE TABLE IF NOT EXISTS learning_state (
+    thread_id TEXT PRIMARY KEY,
+    dot_id TEXT NOT NULL,
+    message_count INTEGER NOT NULL,
+    learned_at TIMESTAMPTZ NOT NULL DEFAULT now()
+  );
+  CREATE INDEX IF NOT EXISTS learning_state_dot_idx
+    ON learning_state (dot_id);
+  CREATE TABLE IF NOT EXISTS learning_passes (
+    id BIGSERIAL PRIMARY KEY,
+    dot_id TEXT NOT NULL,
+    thread_id TEXT NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+  );
+  CREATE INDEX IF NOT EXISTS learning_passes_dot_created_idx
+    ON learning_passes (dot_id, created_at);
+  `,
 ];
 
 /** Build a bounded connection pool. The connection string is never logged. */

@@ -323,6 +323,12 @@ export const ptBR: Record<keyof typeof en, string> = {
   'skills.reject': 'Rejeitar',
   'skills.rejectReason': 'Por que rejeitar?',
   'skills.rejectReasonPlaceholder': 'ex.: específica demais para uma conversa',
+  'skills.learning': 'Aprendizado automático',
+  'skills.learningToggle': 'Sugerir habilidades a partir de conversas',
+  'skills.learningHelp':
+    'Desativado por padrão. Quando ativado, o NexBot revisa conversas longas depois que elas terminam e sugere habilidades aqui para sua aprovação. Cada revisão consome o orçamento do seu modelo.',
+  'skills.learningQuota': 'Revisões na última hora: {used} de {limit}.',
+  'skills.proposalProvenance': 'Sugerida automaticamente em {date}',
 
   // Connected-service action card
   'connectionAction.loadFailed': 'Não foi possível carregar esta solicitação.',

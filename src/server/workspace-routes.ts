@@ -21,6 +21,7 @@ const dotSchema = z
       .default([]),
     learningContainerId: learningContainerIdSchema.optional(),
     skillDeliveryEnabled: z.boolean().optional(),
+    learningEnabled: z.boolean().optional(),
     spaceIds: z.array(z.string().min(1)).min(1).max(100).optional(),
     spaceId: z.string().min(1).optional(),
   })
@@ -111,6 +112,7 @@ export function workspaceRoutes(platform: Platform, voice: VoiceService) {
         data.data.skillDeliveryEnabled,
         data.data.appsAllowed,
         data.data.composioToolkits,
+        data.data.learningEnabled,
       ),
       201,
     );

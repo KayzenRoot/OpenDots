@@ -1,8 +1,11 @@
 import { Hono, type Context } from 'hono';
 import { z } from 'zod';
 import { skillDescription } from './learning.js';
+import { LEARNING_PASSES_PER_HOUR } from './learning-pass.js';
 import type { SkillRecord, UpsertSkillInput } from './learning-store.js';
 import type { WorkspaceStore } from './workspace.js';
+
+const HOUR_MS = 60 * 60 * 1000;
 
 /**
  * The storage surface these routes need. `LearningStore` implements it; a test
@@ -26,10 +29,15 @@ export interface SkillCatalog {
     reason: string,
   ): Promise<SkillRecord | null>;
   deleteSkill(dotId: string, name: string): Promise<boolean>;
+  /** Reflection passes used, for the hourly limit shown in the editor. */
+  countPassesSince(dotId: string, since: Date): Promise<number>;
 }
 
-/** Only Dot existence is needed; `WorkspaceStore` satisfies it structurally. */
-type DotLookup = Pick<WorkspaceStore, 'dot'>;
+/**
+ * Only Dot existence and the learning switch are needed; `WorkspaceStore`
+ * satisfies both structurally.
+ */
+type DotLookup = Pick<WorkspaceStore, 'dot' | 'setLearningEnabled'>;
 
 /** A skill name is passed to a model as a tool argument, so keep it narrow. */
 const nameSchema = z.string().regex(/^[a-z0-9][a-z0-9-]{0,63}$/);
@@ -56,6 +64,8 @@ const patchSchema = z
     reason: z.string().trim().min(1).max(2000).optional(),
   })
   .strict();
+
+const learningToggleSchema = z.object({ enabled: z.boolean() }).strict();
 
 /** A route failure with an HTTP status, distinct from an unexpected 500. */
 class RouteError extends Error {
@@ -97,6 +107,42 @@ export function skillRoutes(workspace: DotLookup, learning: SkillCatalog) {
       );
     return parsed.data;
   };
+
+  /**
+   * The automatic learning switch and its visible budget. Learning is off
+   * unless enabled per Dot; the pass count makes the hourly limit concrete.
+   */
+  app.get('/learning', async (c) => {
+    const dotId = requireDot(c);
+    const used = await learning.countPassesSince(
+      dotId,
+      new Date(Date.now() - HOUR_MS),
+    );
+    return c.json({
+      enabled: workspace.dot(dotId)?.learningEnabled === true,
+      passesLastHour: used,
+      passesPerHour: LEARNING_PASSES_PER_HOUR,
+    });
+  });
+
+  // A narrow toggle for the Skills section, so it does not resubmit the whole
+  // Dot form just to switch learning on.
+  app.patch('/learning', async (c) => {
+    const dotId = requireDot(c);
+    const { enabled } = learningToggleSchema.parse(
+      await c.req.json().catch(() => null),
+    );
+    const dot = workspace.setLearningEnabled(dotId, enabled);
+    const used = await learning.countPassesSince(
+      dotId,
+      new Date(Date.now() - HOUR_MS),
+    );
+    return c.json({
+      enabled: dot.learningEnabled === true,
+      passesLastHour: used,
+      passesPerHour: LEARNING_PASSES_PER_HOUR,
+    });
+  });
 
   // Approved skills first, proposals separated. Rejected rows are kept for the
   // reflection pass but are not shown in the editor.
@@ -159,7 +205,10 @@ export function skillRoutes(workspace: DotLookup, learning: SkillCatalog) {
     if (error instanceof RouteError)
       return c.json({ error: error.message }, error.status);
     if (error instanceof z.ZodError)
-      return c.json({ error: 'Check the skill name, body and action.' }, 400);
+      return c.json(
+        { error: 'Check the skill name, body, action or learning switch.' },
+        400,
+      );
     console.error('Skill API failed:', error.name);
     return c.json(
       { error: 'The server could not complete this request.' },

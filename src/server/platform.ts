@@ -10,6 +10,7 @@ import {
 } from '@copilotkit/runtime/v2';
 import { PostgresAgentRunner } from './agent-runner.js';
 import type { ConversationStorage } from './conversation-store.js';
+import { LearningService, learningModel } from './learning-pass.js';
 import type { LearningStore } from './learning-store.js';
 import { Store } from './store.js';
 import { WorkspaceStore } from './workspace.js';
@@ -38,6 +39,8 @@ export class Platform {
   readonly slack: SlackService;
   /** Postgres-backed per-Dot skills, when a database is configured. */
   readonly learning?: LearningStore;
+  /** The automatic learning pass (WORK-021), when both stores are configured. */
+  readonly learningPass?: LearningService;
   constructor(
     readonly store: Store,
     readonly workspace: WorkspaceStore,
@@ -67,8 +70,20 @@ export class Platform {
         this.turn(threadId, prompt, signal, metadata),
     });
     if (!conversations) return;
+    // Learning is opt-in per Dot and off by default; the service reads the
+    // switch on every pass, so toggling it takes effect without a restart.
+    if (learning)
+      this.learningPass = new LearningService({
+        store: learning,
+        conversations,
+        enabled: (dotId) => workspace.dot(dotId)?.learningEnabled === true,
+        paused: () => store.settings().paused,
+        model: learningModel(config),
+      });
     const runner = new PostgresAgentRunner(conversations, {
       ownerId: workspace.ownerId,
+      onRunPersisted: ({ threadId, agentId }) =>
+        this.learningPass?.maybeLearn(threadId, agentId),
     });
     this.runner = runner;
     const runtime = new CopilotRuntime({

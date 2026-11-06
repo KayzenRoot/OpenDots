@@ -1,4 +1,12 @@
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
+import {
+  afterAll,
+  beforeAll,
+  beforeEach,
+  describe,
+  expect,
+  it,
+  vi,
+} from 'vitest';
 import { Pool } from 'pg';
 import { Observable, Subject, from, lastValueFrom, toArray } from 'rxjs';
 import {
@@ -191,6 +199,46 @@ describePostgres('PostgresAgentRunner (PostgreSQL)', () => {
       true,
     );
     await tick();
+  });
+
+  it('offers a persisted run to the post-run hook and isolates its failures', async () => {
+    const hook = vi.fn();
+    const hooked = new PostgresAgentRunner(conversations, {
+      ownerId: 'owner-1',
+      onRunPersisted: hook,
+    });
+    const agent = new TestAgent(from(completedRun('t7', 'r7')));
+    agent.addMessage({ id: 'user-1', role: 'user', content: 'Hi' });
+    await lastValueFrom(
+      hooked
+        .run({ threadId: 't7', agent, input: input('t7', 'r7') })
+        .pipe(toArray()),
+    );
+    expect(hook).toHaveBeenCalledWith({
+      threadId: 't7',
+      runId: 'r7',
+      agentId: 'dot-1',
+    });
+
+    // A throwing hook must not turn a completed run into a failure.
+    const failing = new PostgresAgentRunner(conversations, {
+      ownerId: 'owner-1',
+      onRunPersisted: () => {
+        throw new Error('learning exploded');
+      },
+    });
+    const failingAgent = new TestAgent(from(completedRun('t8', 'r8')));
+    failingAgent.addMessage({ id: 'user-1', role: 'user', content: 'Hi' });
+    const events = await lastValueFrom(
+      failing
+        .run({ threadId: 't8', agent: failingAgent, input: input('t8', 'r8') })
+        .pipe(toArray()),
+    );
+    expect(events.some((event) => event.type === EventType.RUN_FINISHED)).toBe(
+      true,
+    );
+    expect(await failing.isRunning({ threadId: 't8' })).toBe(false);
+    await expect(conversations.listRuns('t8')).resolves.toHaveLength(1);
   });
 
   it('clearThreads removes persisted threads and the in-process mirror', async () => {

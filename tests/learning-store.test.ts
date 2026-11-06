@@ -29,13 +29,16 @@ describePostgres('LearningStore (PostgreSQL)', () => {
   afterAll(async () => {
     await pool.end();
   });
-  beforeEach(async () => {
+  const cleanup = async () => {
     await pool.query("DELETE FROM skills WHERE dot_id LIKE 'ls-%'");
+    await pool.query("DELETE FROM learning_state WHERE dot_id LIKE 'ls-%'");
+    await pool.query("DELETE FROM learning_passes WHERE dot_id LIKE 'ls-%'");
+  };
+  beforeEach(async () => {
+    await cleanup();
     store = new LearningStore(pool);
   });
-  afterEach(async () => {
-    await pool.query("DELETE FROM skills WHERE dot_id LIKE 'ls-%'");
-  });
+  afterEach(cleanup);
 
   it('inserts a skill at revision 1 and reads it back', async () => {
     const created = await store.upsertSkill(dotA, {
@@ -180,5 +183,61 @@ describePostgres('LearningStore (PostgreSQL)', () => {
       await store.proposeSkill(dotA, { name: 'taken', body: 'Model idea.' }),
     ).toBeNull();
     expect((await store.getSkill(dotA, 'taken'))?.body).toBe('Human authored.');
+  });
+
+  it('records proposal provenance and clears it when a human takes over', async () => {
+    const proposed = await store.proposeSkill(
+      dotA,
+      { name: 'learned', body: 'Learned from a conversation.' },
+      { conversationId: 'ls-thread-1', model: 'model-y' },
+    );
+    expect(proposed).toMatchObject({
+      source: 'learning',
+      conversationId: 'ls-thread-1',
+      model: 'model-y',
+      status: 'proposed',
+    });
+    expect(typeof proposed?.createdAt).toBe('string');
+    // Provenance is visible, but the proposal is still not deliverable.
+    expect(await store.deliverableSkills(dotA)).toEqual([]);
+
+    const takenOver = await store.upsertSkill(dotA, {
+      name: 'learned',
+      body: 'Now a human-authored rule.',
+    });
+    expect(takenOver).toMatchObject({
+      source: 'manual',
+      conversationId: null,
+      model: null,
+      status: 'approved',
+    });
+    expect((await store.deliverableSkills(dotA)).map((s) => s.name)).toEqual([
+      'learned',
+    ]);
+  });
+
+  it('remembers which conversation snapshot was analysed', async () => {
+    expect(await store.learningState('ls-thread-2')).toBeNull();
+    await store.markLearned('ls-thread-2', dotA, 8);
+    expect(await store.learningState('ls-thread-2')).toMatchObject({
+      threadId: 'ls-thread-2',
+      dotId: dotA,
+      messageCount: 8,
+    });
+    await store.markLearned('ls-thread-2', dotA, 12);
+    expect((await store.learningState('ls-thread-2'))?.messageCount).toBe(12);
+  });
+
+  it('counts passes per Dot inside the requested window', async () => {
+    await store.recordPass(dotA, 'ls-thread-3');
+    await store.recordPass(dotA, 'ls-thread-4');
+    await store.recordPass(dotB, 'ls-thread-5');
+    const since = new Date(Date.now() - 60 * 60 * 1000);
+    expect(await store.countPassesSince(dotA, since)).toBe(2);
+    expect(await store.countPassesSince(dotB, since)).toBe(1);
+    // A window that has not started yet counts nothing.
+    expect(
+      await store.countPassesSince(dotA, new Date(Date.now() + 60_000)),
+    ).toBe(0);
   });
 });

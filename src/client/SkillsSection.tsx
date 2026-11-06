@@ -15,9 +15,19 @@ type SkillView = {
   enabled: boolean;
   status: 'approved' | 'proposed' | 'rejected';
   rejectionReason: string | null;
+  /** `learning` proposals were suggested by the automatic pass. */
+  source?: 'manual' | 'learning';
+  conversationId?: string | null;
+  model?: string | null;
   description: string;
   createdAt: string;
   updatedAt: string;
+};
+
+type LearningView = {
+  enabled: boolean;
+  passesLastHour: number;
+  passesPerHour: number;
 };
 
 type Editor = { mode: 'new' | 'edit'; name: string; body: string } | null;
@@ -35,9 +45,10 @@ const stayInSection = (event: KeyboardEvent) => {
  * editor is deliberately plain.
  */
 export function SkillsSection({ dotId }: { dotId: string }) {
-  const { t } = useTranslation();
+  const { locale, t } = useTranslation();
   const [approved, setApproved] = useState<SkillView[]>();
   const [proposals, setProposals] = useState<SkillView[]>([]);
+  const [learning, setLearning] = useState<LearningView>();
   const [editor, setEditor] = useState<Editor>(null);
   const [rejecting, setRejecting] = useState<{
     name: string;
@@ -57,6 +68,16 @@ export function SkillsSection({ dotId }: { dotId: string }) {
         if (!active) return;
         setApproved(value.skills);
         setProposals(value.proposals);
+      })
+      .catch((cause) => {
+        if (active)
+          setError(
+            cause instanceof Error ? cause.message : t('skills.loadFailed'),
+          );
+      });
+    void api<LearningView>(`/learning?dotId=${encodeURIComponent(dotId)}`)
+      .then((value) => {
+        if (active) setLearning(value);
       })
       .catch((cause) => {
         if (active)
@@ -84,6 +105,17 @@ export function SkillsSection({ dotId }: { dotId: string }) {
   };
 
   const reload = () => setAttempt((value) => value + 1);
+
+  const toggleLearning = async (enabled: boolean) => {
+    const done = await call('learning', () =>
+      api<LearningView>(
+        `/learning?dotId=${encodeURIComponent(dotId)}`,
+        'PATCH',
+        { enabled },
+      ),
+    );
+    if (done) setLearning(done);
+  };
 
   const patch = async (
     name: string,
@@ -148,6 +180,30 @@ export function SkillsSection({ dotId }: { dotId: string }) {
     <fieldset className="space-access-fields skills-fields">
       <legend>{t('skills.title')}</legend>
       <p className="muted">{t('skills.help')}</p>
+
+      {learning && (
+        <div className="skills-learning">
+          <h4>{t('skills.learning')}</h4>
+          <label className="permission-row">
+            <input
+              type="checkbox"
+              checked={learning.enabled}
+              disabled={!!busy}
+              onChange={(event) => void toggleLearning(event.target.checked)}
+            />
+            <span>
+              <strong>{t('skills.learningToggle')}</strong>
+              <small>{t('skills.learningHelp')}</small>
+            </span>
+          </label>
+          <p className="muted">
+            {t('skills.learningQuota', {
+              used: learning.passesLastHour,
+              limit: learning.passesPerHour,
+            })}
+          </p>
+        </div>
+      )}
 
       {editor ? (
         <div className="skill-editor">
@@ -290,7 +346,18 @@ export function SkillsSection({ dotId }: { dotId: string }) {
           {proposals.map((proposal) => (
             <div className="skill skill-proposal" key={proposal.id}>
               <div className="skill-head">
-                <strong>{proposal.name}</strong>
+                <span>
+                  <strong>{proposal.name}</strong>
+                  {proposal.source === 'learning' && (
+                    <small>
+                      {t('skills.proposalProvenance', {
+                        date: new Date(proposal.createdAt).toLocaleDateString(
+                          locale,
+                        ),
+                      })}
+                    </small>
+                  )}
+                </span>
               </div>
               <div className="skill-body">
                 <ReactMarkdown

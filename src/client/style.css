@@ -4522,10 +4522,19 @@ h3 {
 .skill-proposals {
   margin-top: 10px;
 }
-.skill-proposals h4 {
+.skill-proposals h4,
+.skills-learning h4 {
   margin: 0;
   font-size: 12px;
   font-weight: 600;
+}
+.skills-learning {
+  margin: 8px 0 12px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--line);
+}
+.skills-learning .muted {
+  margin: 4px 0 0;
 }
 .skill-proposal .skill-body {
   max-height: 240px;
