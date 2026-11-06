@@ -1,5 +1,24 @@
 # Running the template
 
+> **This is the upstream guide and it is out of date for this fork.** Every
+> mention of CopilotKit Intelligence, `CPK_INTELLIGENCE_API_KEY`,
+> `@copilotkit/channels`, hosted Slack channels, hosted Learning containers and
+> SDK telemetry below describes the original hosted design, which this fork
+> removed. In this fork:
+>
+> - conversations live in **PostgreSQL** (`DATABASE_URL`), not a hosted project;
+> - the model provider is configured **in the app** under Settings, or via
+>   `OPENAI_BASE_URL` / `OPENAI_API_KEY` / `OPENAI_MODEL` plus
+>   `OPENAI_EXTRA_HEADERS` when the gateway needs routing headers;
+> - Slack is a **self-hosted** Events API webhook (`SLACK_BOT_TOKEN`,
+>   `SLACK_SIGNING_SECRET`), not a managed channel;
+> - Automatic Learning stores per-Dot skills in PostgreSQL;
+> - no CopilotKit account, key or telemetry endpoint is used.
+>
+> Start from [fork/LOCAL-INSTALL.md](./fork/LOCAL-INSTALL.md) for a local install,
+> [fork/DEPLOYMENT.md](./fork/DEPLOYMENT.md) for a server, and
+> [fork/PRODUCTION-READINESS.md](./fork/PRODUCTION-READINESS.md) for the gate list.
+
 OpenDots runs a React app and a Node server. The server stores pages, Space and Dot configuration, and thread bindings in SQLite and connects to your configured conversation, model, and messaging services.
 
 ## Local development
