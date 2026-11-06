@@ -1,5 +1,6 @@
 import { computerRoutes } from './computer-routes.js';
 import { modelRoutes } from './model-routes.js';
+import { UpdateChecker, updateRoutes } from './update-routes.js';
 import { skillRoutes } from './skill-routes.js';
 import { connectionRoutes } from './connection-routes.js';
 import { Hono } from 'hono';
@@ -53,6 +54,13 @@ export function createApp({
   const slackLimiter = new FixedWindowLimiter(120, 60_000);
   // Token guessing: generous for a human, useless for a script.
   const authFailures = new FixedWindowLimiter(40, 60_000);
+  // Report-only update channel; the outbound check is cached for an hour.
+  const updateChecker = new UpdateChecker(
+    fetch,
+    process.env.GITHUB_TOKEN,
+    undefined,
+    60 * 60 * 1000,
+  );
   app.use('/api/slack/*', async (c, next) => {
     const decision = slackLimiter.check(clientKey(c.req.raw.headers));
     if (!decision.allowed) {
@@ -155,6 +163,7 @@ export function createApp({
       '/api',
       modelRoutes(platform.modelConfig, fetch, platform.config.extraHeaders),
     );
+  app.route('/api', updateRoutes(updateChecker));
   if (platform && platform.learning)
     app.route('/api', skillRoutes(platform.workspace, platform.learning));
   if (platform) app.route('/api', computerRoutes(platform.computers));

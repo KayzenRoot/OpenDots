@@ -18,7 +18,8 @@
     "knip:production": "knip --production",
     "lint": "eslint src tests vite.config.ts",
     "format": "prettier --write src tests *.json *.ts *.js index.html public .github Dockerfile \"compose*.yml\" deployment README.md docs .env.example --ignore-unknown",
-    "check-format": "prettier --check src tests *.json *.ts *.js index.html public .github Dockerfile \"compose*.yml\" deployment README.md docs .env.example --ignore-unknown"
+    "check-format": "prettier --check src tests *.json *.ts *.js index.html public .github Dockerfile \"compose*.yml\" deployment README.md docs .env.example --ignore-unknown",
+    "debug-env": "cross-env NODE_ENV=development node -e \"console.log(String.fromCharCode(78,79,68,69,95,69,78,86)+process.env.NODE_ENV)\""
   },
   "keywords": [],
   "author": "Atai Barkai",
