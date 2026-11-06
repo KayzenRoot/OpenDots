@@ -15,7 +15,7 @@ import {
 } from '../src/server/setup-telemetry.js';
 
 it('persists bounded offline events with stable IDs and the installation identity across restart', async () => {
-  const dir = mkdtempSync(join(tmpdir(), 'opendots-telemetry-'));
+  const dir = mkdtempSync(join(tmpdir(), 'nexbot-telemetry-'));
   const path = join(dir, 'store.sqlite');
   let store = new Store(path);
   const offline = vi.fn(async () => {
@@ -51,8 +51,8 @@ it('persists bounded offline events with stable IDs and the installation identit
     event_id: id,
     event: 'oss.runtime.setup_step_viewed',
     global_properties: {
-      accessibility_title: 'OpenDots',
-      opendots_distribution: 'web',
+      accessibility_title: 'NexBot',
+      nexbot_distribution: 'web',
       installation_id: installationId,
     },
   });

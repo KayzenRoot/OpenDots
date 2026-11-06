@@ -1,5 +1,5 @@
 export type ThemePreference = 'system' | 'light' | 'dark';
-const key = 'opendots-theme';
+const key = 'nexbot-theme';
 // The choice for this page, even if storage refuses to keep it.
 let chosen: ThemePreference | undefined;
 const query = () => window.matchMedia('(prefers-color-scheme: dark)');

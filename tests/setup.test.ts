@@ -4,7 +4,7 @@ import {
   type PlatformConfig,
 } from '../src/server/platform-config.js';
 const config: PlatformConfig = {
-  databaseUrl: 'postgres://example.test/opendots',
+  databaseUrl: 'postgres://example.test/nexbot',
   apiKey: 'fixture',
   model: 'fixture',
   baseUrl: 'https://example.com',

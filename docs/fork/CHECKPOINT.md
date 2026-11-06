@@ -9,7 +9,7 @@ Status snapshot for the decoupled fork. Date: **2026-11-05**.
 | Upstream               | `CopilotKit/OpenDots` (MIT, default branch `main`)                                                                             |
 | Upstream HEAD recorded | `d4214aff10f066911f3253cb3cb870764cd51a9f`                                                                                     |
 | Destination fork       | `https://github.com/KayzenRoot/OpenDots`                                                                                       |
-| Local working tree     | `D:\Projects\opendots-clone\work\fork`                                                                                         |
+| Local working tree     | `D:\Projects\opendots-clone\work\fork` (directory name unchanged; only the brand was renamed)                                  |
 | `origin` remote        | `https://github.com/KayzenRoot/OpenDots.git`                                                                                   |
 | License                | Retained upstream MIT (`LICENSE`, Copyright (c) Atai Barkai)                                                                   |
 | Stack                  | Single npm package; TypeScript, ESM, Node >= 24; React 19 + Vite client; Hono on `@hono/node-server`; SQLite via `node:sqlite` |
@@ -138,18 +138,18 @@ Branch `fork/decouple-and-harden` @ `6f310a2`, pull request
 | WORK-010 security review         | DONE, verdict **CORRECTION REQUIRED** | [SECURITY-AUDIT.md](./SECURITY-AUDIT.md); production audit 1 critical → 0                                                                |
 
 Gates observed at that commit: `typecheck`, `lint`, `check-format`, `build`
-clean; `npm test` 388 passed / 60 files with `OPENDOTS_TEST_DATABASE_URL`, and
+clean; `npm test` 388 passed / 60 files with `NEXBOT_TEST_DATABASE_URL`, and
 Postgres suites self-skip without it.
 
 Live proof: one AG-UI turn returned `RUN_STARTED → TEXT_MESSAGE_* →
 RUN_FINISHED` with the expected assistant text, both on the host and inside the
-`opendots-app` container; the thread and its messages were re-read from
+`nexbot-app` container; the thread and its messages were re-read from
 PostgreSQL after a server restart and after a container restart.
 
 ### Backup and restore, round-trip (2026-11-05)
 
-`deployment/backup.sh` produced a quiesced pair (`opendots.pgdump` custom
-format, `opendots.sqlite`, `MANIFEST.txt`). A conversation was then deleted
+`deployment/backup.sh` produced a quiesced pair (`nexbot.pgdump` custom
+format, `nexbot.sqlite`, `MANIFEST.txt`). A conversation was then deleted
 directly from PostgreSQL (3 → 2 conversations, 3 → 2 runs), and
 `deployment/restore.sh` was run: it stopped the app, dropped and recreated the
 database, restored both stores, restarted the app and reported readiness. The
@@ -174,7 +174,7 @@ untouched paths — see [SECURITY-AUDIT.md](./SECURITY-AUDIT.md) F5–F8.
 ### Slack, verified live (2026-11-05)
 
 The self-hosted Slack integration was exercised against a real workspace
-(Nexlabs, `T0CF2380YQM`, channel `#geral`). App `OpenDots` (`A0CETPAP5B9`) was
+(Nexlabs, `T0CF2380YQM`, channel `#geral`). App `NexBot` (`A0CETPAP5B9`) was
 created from `deployment/slack-app-manifest.json`, installed, and added to the
 channel. `setup().slack` reported `online`.
 
@@ -196,4 +196,4 @@ domain).
 - **B9** The bundled CopilotKit web-inspector still carries its telemetry URL
   constant. No request to it was observed, but it is not provably dead code.
 - **B10** Docker's `COMPOSE_PROJECT_NAME` was inherited as `hive-v102`; builds
-  must pass `-p opendots` to avoid joining an unrelated project.
+  must pass `-p nexbot` to avoid joining an unrelated project.

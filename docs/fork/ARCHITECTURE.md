@@ -25,7 +25,7 @@ flowchart TB
       LSTORE["learning-store.ts<br/>local skills"]
       SLACK["slack-channel.ts (rewritten)<br/>Slack Web API + Events API"]
       PG["pg.ts<br/>pool + versioned migrations"]
-      SQLITE[("SQLite: data/opendots.sqlite<br/>spaces, dots, pages, tasks, ...")]
+      SQLITE[("SQLite: data/nexbot.sqlite<br/>spaces, dots, pages, tasks, ...")]
     end
     PGDB[("PostgreSQL<br/>conversations, messages,<br/>thread_runs/events/state, skills,<br/>schema_migrations")]
     BROWSER["browser container (4311, optional)<br/>read-only Playwright"]

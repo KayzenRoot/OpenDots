@@ -131,6 +131,14 @@ h3 {
   color: #a1addc;
   margin-left: -6px;
 }
+/* Brand mark beside the wordmark: the app icon at header size. */
+.wordmark-mark {
+  width: 22px;
+  height: 22px;
+  border-radius: 6px;
+  flex: 0 0 auto;
+  display: block;
+}
 .dotted-logo {
   display: grid;
   grid-template-columns: repeat(2, 5px);
@@ -1974,6 +1982,9 @@ h3 {
   margin-top: 16px;
   max-height: 27vh;
   overflow: auto;
+  /* Same reason as .spaces-nav: overflow:auto zeroes the automatic minimum size,
+     so the list gets squeezed by its siblings and rows render clipped. */
+  flex: 0 0 auto;
 }
 .thread-list .nav-item {
   padding: 9px 12px;

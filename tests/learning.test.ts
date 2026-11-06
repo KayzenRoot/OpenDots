@@ -53,7 +53,7 @@ it('freezes legacy container assignments, including disabled conversations, when
 });
 
 it('migrates legacy threads without enrolling them and persists configuration across restart', () => {
-  const dir = mkdtempSync(join(tmpdir(), 'opendots-learning-'));
+  const dir = mkdtempSync(join(tmpdir(), 'nexbot-learning-'));
   cleanup.push(() => rmSync(dir, { recursive: true, force: true }));
   const path = join(dir, 'workspace.sqlite');
   const legacy = new DatabaseSync(path);

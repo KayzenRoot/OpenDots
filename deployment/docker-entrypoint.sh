@@ -1,5 +1,5 @@
 #!/bin/sh
-# OpenDots app container entrypoint.
+# NexBot app container entrypoint.
 #
 # Responsibilities:
 #   1. Fail fast if required configuration is missing.

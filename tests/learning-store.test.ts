@@ -11,7 +11,7 @@ import { Pool } from 'pg';
 import { createPool, migrate } from '../src/server/pg.js';
 import { LearningStore } from '../src/server/learning-store.js';
 
-const databaseUrl = process.env.OPENDOTS_TEST_DATABASE_URL;
+const databaseUrl = process.env.NEXBOT_TEST_DATABASE_URL;
 const describePostgres = databaseUrl ? describe : describe.skip;
 
 describePostgres('LearningStore (PostgreSQL)', () => {

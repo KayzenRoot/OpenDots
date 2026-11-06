@@ -9,7 +9,7 @@ import { WorkspaceStore } from '../src/server/workspace.js';
 import { MemoryConversations } from './fixtures/memory-conversations.js';
 
 const configured: PlatformConfig = {
-  databaseUrl: 'postgres://example.test/opendots',
+  databaseUrl: 'postgres://example.test/nexbot',
   apiKey: 'fixture',
   model: 'fixture',
   baseUrl: 'https://example.com',

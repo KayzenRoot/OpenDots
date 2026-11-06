@@ -104,10 +104,10 @@ describe('gateway routing headers', () => {
     );
     const app = new Hono().route(
       '/api',
-      modelRoutes(store, spy, { 'x-opencode-session': 'opendots-test' }),
+      modelRoutes(store, spy, { 'x-opencode-session': 'nexbot-test' }),
     );
     const res = await app.request('/api/model', json(body));
-    expect(seen['x-opencode-session']).toBe('opendots-test');
+    expect(seen['x-opencode-session']).toBe('nexbot-test');
     expect(res.status).toBe(200);
   });
 });

@@ -38,7 +38,7 @@ computer if using persisted computers.
 ```
 
 - `compose.yml` defines `app` (port `127.0.0.1:4310` published, volumes
-  `opendots-data:/data`, networks `browser-link` + `app-egress`,
+  `nexbot-data:/data`, networks `browser-link` + `app-egress`,
   `no-new-privileges`, `cap_drop: ALL`, `restart: unless-stopped`, `init: true`)
   and `browser` (profile `browser`, `read_only`, tmpfs `/tmp`, `shm_size: 256mb`,
   internal `browser-link`, egress `browser-egress`).
@@ -64,12 +64,12 @@ computer if using persisted computers.
 HOST=0.0.0.0                 # external binding requires OWNER_TOKEN (24+ chars)
 PORT=4310
 OWNER_TOKEN=                 # R for external binding; 24+ chars; bearer login
-OWNER_ID=opendots-owner      # keep stable
+OWNER_ID=nexbot-owner      # keep stable
 APP_ORIGIN=https://dots.example.com   # exact origin(s), comma-separated
-DATABASE_PATH=/data/opendots.sqlite   # SQLite (app state)
+DATABASE_PATH=/data/nexbot.sqlite   # SQLite (app state)
 
 # --- PostgreSQL (conversations) --- PLANNED WORK-003/008 -----------------
-DATABASE_URL=postgres://opendots:***@postgres:5432/opendots
+DATABASE_URL=postgres://nexbot:***@postgres:5432/nexbot
 # or discrete PGHOST/PGPORT/PGUSER/PGPASSWORD/PGDATABASE
 PGSSLMODE=require            # depends on network placement
 
@@ -108,7 +108,7 @@ SLACK_DOT_ID=
 COMPUTER_SUPERVISOR_URL=
 COMPUTER_SUPERVISOR_TOKEN=     # 24+ chars
 COMPUTER_TOKEN=               # 24+ chars, master token (derivation uses HMAC)
-COMPUTER_NAMESPACE=opendots   # keep stable; identifies containers/volumes
+COMPUTER_NAMESPACE=nexbot   # keep stable; identifies containers/volumes
 ```
 
 Removed by WORK-004: `CPK_INTELLIGENCE_API_KEY`, `INTELLIGENCE_API_KEY`,
@@ -160,14 +160,14 @@ Docker availability.
 
 ## 7. Volumes and persistent data
 
-| Data                         | Location                                               | Backup needed                          |
-| ---------------------------- | ------------------------------------------------------ | -------------------------------------- |
-| App state (SQLite)           | named volume `opendots-data` → `/data/opendots.sqlite` | Yes (paired with Postgres)             |
-| Conversations (Postgres)     | PLANNED named volume → `/var/lib/postgresql/data`      | Yes (paired with SQLite)               |
-| Computer workspaces/profiles | supervisor-managed named volumes (per Dot)             | Optional; do not delete during updates |
-| Browser service              | none (read-only, tmpfs)                                | No                                     |
+| Data                         | Location                                           | Backup needed                          |
+| ---------------------------- | -------------------------------------------------- | -------------------------------------- |
+| App state (SQLite)           | named volume `nexbot-data` → `/data/nexbot.sqlite` | Yes (paired with Postgres)             |
+| Conversations (Postgres)     | PLANNED named volume → `/var/lib/postgresql/data`  | Yes (paired with SQLite)               |
+| Computer workspaces/profiles | supervisor-managed named volumes (per Dot)         | Optional; do not delete during updates |
+| Browser service              | none (read-only, tmpfs)                            | No                                     |
 
-Never delete the `opendots-data` volume or the Postgres volume during a normal
+Never delete the `nexbot-data` volume or the Postgres volume during a normal
 update. The supervisor notes that profile/workspace volumes must be retained
 across credential changes.
 
@@ -182,10 +182,10 @@ as **one consistent pair**.
 1. Stop the app container (so no turns are writing):
    `docker compose stop app`.
 2. SQLite: copy the file **and** its WAL/SHM sidecars, or use
-   `sqlite3 /data/opendots.sqlite ".backup /backup/opendots.sqlite"` from a
+   `sqlite3 /data/nexbot.sqlite ".backup /backup/nexbot.sqlite"` from a
    helper container.
-3. Postgres: `docker compose exec -T postgres pg_dump -Fc -U opendots opendots
-   > /backup/opendots.pgdump`.
+3. Postgres: `docker compose exec -T postgres pg_dump -Fc -U nexbot nexbot
+   > /backup/nexbot.pgdump`.
 4. Start the app: `docker compose start app`.
 5. Store the pair together with a timestamp and the git commit of the running
    build.
@@ -194,8 +194,8 @@ as **one consistent pair**.
 
 1. Stop the app.
 2. Restore Postgres: recreate the database and
-   `pg_restore -Fc -U opendots -d opendots /backup/opendots.pgdump`.
-3. Restore SQLite: replace `/data/opendots.sqlite` (remove stale `-wal`/`-shm`
+   `pg_restore -Fc -U nexbot -d nexbot /backup/nexbot.pgdump`.
+3. Restore SQLite: replace `/data/nexbot.sqlite` (remove stale `-wal`/`-shm`
    before restoring).
 4. Start the app.
 5. **Reconcile** (catch dangling references after a partial restore):

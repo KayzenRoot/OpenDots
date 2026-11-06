@@ -5,7 +5,7 @@ This fork uses **two datastores** (accepted decision ADR-0003):
 - **PostgreSQL** — conversations only: threads, messages, runs, streamed
   events, thread state, and the local learning/skills store.
 - **SQLite** (`node:sqlite` `DatabaseSync`, WAL, default
-  `data/opendots.sqlite`) — everything else: workspace, pages, tasks, memories,
+  `data/nexbot.sqlite`) — everything else: workspace, pages, tasks, memories,
   MCP connections, computer permissions, settings, setup telemetry.
 
 Section 1 defines the PostgreSQL schema (PLANNED, WORK-003/WORK-006). Section 2
@@ -68,17 +68,17 @@ Indexes:
 
 One row per persisted user/assistant/tool message.
 
-| Column            | Type     | Constraints / notes                                            |
-| ----------------- | -------- | -------------------------------------------------------------- |
-| `id`              | `text`   | `PRIMARY KEY`                                                  |
-| `conversation_id` | `text`   | `NOT NULL REFERENCES conversations(id) ON DELETE CASCADE`      |
-| `seq`             | `bigint` | `NOT NULL` — monotonic per conversation; ordering key          |
-| `role`            | `text`   | `NOT NULL` — `user` \| `assistant` \| `tool` \| `system`       |
-| `content`         | `jsonb`  | `NOT NULL` — string or AG-UI content parts                     |
-| `name`            | `text`   | `NULL` — tool name when `role='tool'`                          |
-| `tool_call_id`    | `text`   | `NULL`                                                         |
-| `metadata`        | `jsonb`  | `NULL` — e.g. `opendotsSource` (voice receipt, scheduled task) |
-| `created_at`      | `bigint` | `NOT NULL`                                                     |
+| Column            | Type     | Constraints / notes                                          |
+| ----------------- | -------- | ------------------------------------------------------------ |
+| `id`              | `text`   | `PRIMARY KEY`                                                |
+| `conversation_id` | `text`   | `NOT NULL REFERENCES conversations(id) ON DELETE CASCADE`    |
+| `seq`             | `bigint` | `NOT NULL` — monotonic per conversation; ordering key        |
+| `role`            | `text`   | `NOT NULL` — `user` \| `assistant` \| `tool` \| `system`     |
+| `content`         | `jsonb`  | `NOT NULL` — string or AG-UI content parts                   |
+| `name`            | `text`   | `NULL` — tool name when `role='tool'`                        |
+| `tool_call_id`    | `text`   | `NULL`                                                       |
+| `metadata`        | `jsonb`  | `NULL` — e.g. `nexbotSource` (voice receipt, scheduled task) |
+| `created_at`      | `bigint` | `NOT NULL`                                                   |
 
 Indexes:
 
@@ -198,7 +198,7 @@ Indexes:
 ## 2. SQLite tables that remain local (DONE — retained)
 
 `node:sqlite` `DatabaseSync`, WAL mode, `busy_timeout=5000`, default path
-`data/opendots.sqlite` (`DATABASE_PATH`). Created idempotently at boot; additive
+`data/nexbot.sqlite` (`DATABASE_PATH`). Created idempotently at boot; additive
 columns are applied with `ALTER TABLE` guarded by `PRAGMA table_info`.
 
 | Table                  | Columns                                                                                                                                                                       | Source                           |

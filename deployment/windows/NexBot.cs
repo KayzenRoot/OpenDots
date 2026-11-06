@@ -1,11 +1,11 @@
-// OpenDots desktop launcher.
+// NexBot desktop launcher.
 //
 // Build (no SDK required, ships with .NET Framework):
-//   csc /target:winexe /out:OpenDots.exe /r:System.Windows.Forms.dll OpenDots.cs
+//   csc /target:winexe /out:NexBot.exe /r:System.Windows.Forms.dll NexBot.cs
 //
 // Behaviour:
-//   OpenDots.exe            -> ensure the stack is up, then open the app window
-//   OpenDots.exe --install  -> run install.ps1 (one-click installation)
+//   NexBot.exe            -> ensure the stack is up, then open the app window
+//   NexBot.exe --install  -> run install.ps1 (one-click installation)
 //
 // The window is Edge/Chrome in application mode, so it has no address bar and
 // gets its own taskbar entry: the same shape as a desktop chat app.
@@ -48,7 +48,7 @@ internal static class Program
             {
                 using (var client = new WebClient())
                 {
-                    client.Headers.Add("User-Agent", "OpenDots-Launcher");
+                    client.Headers.Add("User-Agent", "NexBot-Launcher");
                     string body = client.DownloadString(Url + "/api/health");
                     if (body != null && body.Contains("\"ok\":true")) return true;
                 }
@@ -66,7 +66,7 @@ internal static class Program
         if (!File.Exists(script))
         {
             MessageBox.Show("Missing " + script + ".\r\nRun the installer first.",
-                "OpenDots", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                "NexBot", MessageBoxButtons.OK, MessageBoxIcon.Error);
             return;
         }
         var psi = new ProcessStartInfo("powershell.exe")

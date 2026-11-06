@@ -1,23 +1,23 @@
-# OpenDots as a hardened systemd service (alternative to Compose restart
-# policies). Install to /etc/systemd/system/opendots.service, then:
+# NexBot as a hardened systemd service (alternative to Compose restart
+# policies). Install to /etc/systemd/system/nexbot.service, then:
 #
-#   sudo useradd --system --home /opt/opendots --shell /usr/sbin/nologin opendots
-#   sudo usermod -aG docker opendots
-#   sudo chown -R opendots:opendots /opt/opendots
+#   sudo useradd --system --home /opt/nexbot --shell /usr/sbin/nologin nexbot
+#   sudo usermod -aG docker nexbot
+#   sudo chown -R nexbot:nexbot /opt/nexbot
 #   sudo systemctl daemon-reload
-#   sudo systemctl enable --now opendots
+#   sudo systemctl enable --now nexbot
 #
 # Requirements:
-#   * The repo lives at /opt/opendots with a filled-in .env (docker compose
+#   * The repo lives at /opt/nexbot with a filled-in .env (docker compose
 #     reads .env from WorkingDirectory; do NOT put secrets in Environment=).
-#   * The `opendots` user must be in the `docker` group to reach the daemon;
+#   * The `nexbot` user must be in the `docker` group to reach the daemon;
 #     membership in `docker` is root-equivalent, so treat this user as
 #     privileged and give it no other duties.
 #   * Keep compose.yml's `restart: unless-stopped` too; systemd restarts the
 #     `docker compose up` process, Compose restarts individual containers.
 
 [Unit]
-Description=OpenDots (docker compose stack)
+Description=NexBot (docker compose stack)
 Requires=docker.service
 After=docker.service network-online.target
 Wants=network-online.target
@@ -25,7 +25,7 @@ Wants=network-online.target
 [Service]
 Type=oneshot
 RemainAfterExit=yes
-WorkingDirectory=/opt/opendots
+WorkingDirectory=/opt/nexbot
 # Runs on boot and on `systemctl start`. `--remove-orphans` cleans up services
 # removed from the compose files between upgrades.
 ExecStart=/usr/bin/docker compose up -d --remove-orphans
@@ -35,8 +35,8 @@ TimeoutStartSec=0
 TimeoutStopSec=120
 
 # Dedicated, unprivileged user (must be in the docker group; see above).
-User=opendots
-Group=opendots
+User=nexbot
+Group=nexbot
 
 # Hardening. Docker needs a writable home-independent state; keep the sandbox
 # modest so the compose client and the daemon socket keep working.
@@ -50,7 +50,7 @@ ProtectControlGroups=true
 RestrictSUIDSGID=true
 LockPersonality=true
 # docker compose must read the repo and write to the volumes it manages.
-ReadWritePaths=/opt/opendots
+ReadWritePaths=/opt/nexbot
 
 Restart=on-failure
 RestartSec=10s

@@ -1,4 +1,4 @@
-# Keeps the local OpenDots stack healthy without administrator rights.
+# Keeps the local NexBot stack healthy without administrator rights.
 #
 # Polls /api/ready and, after a run of consecutive failures, restarts the stack
 # once. A single restart is attempted per outage so a genuinely broken

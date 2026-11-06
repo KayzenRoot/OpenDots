@@ -43,11 +43,11 @@ if (!databaseUrl) {
   );
   process.exit(1);
 }
-const database = process.env.DATABASE_PATH ?? 'data/opendots.sqlite';
+const database = process.env.DATABASE_PATH ?? 'data/nexbot.sqlite';
 const store = new Store(database);
 const workspace = new WorkspaceStore(
   database,
-  process.env.OWNER_ID ?? 'opendots-owner',
+  process.env.OWNER_ID ?? 'nexbot-owner',
 );
 const config: PlatformConfig = {
   databaseUrl,
@@ -147,7 +147,7 @@ const runner = new Runner(
       );
     progress('Running this task in its conversation.');
     const text = await platform.turn(threadId, claim.prompt, signal, {
-      opendotsSource: 'scheduled_task',
+      nexbotSource: 'scheduled_task',
     });
     return { text, sources: [], sample: false };
   },
@@ -174,7 +174,7 @@ app.get('/api/*', (c) => c.json({ error: 'Not found.' }, 404));
 app.use('/*', serveStatic({ root: './dist/client' }));
 app.get('*', serveStatic({ path: './dist/client/index.html' }));
 const server = serve({ fetch: app.fetch, hostname: host, port }, (info) => {
-  console.log(`OpenDots listening on http://${host}:${info.port}`);
+  console.log(`NexBot listening on http://${host}:${info.port}`);
   runner.start();
   void platform
     .start()

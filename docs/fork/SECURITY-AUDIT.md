@@ -1,8 +1,8 @@
 # Security audit (WORK-010)
 
 Date: 2026-11-05. Scope: branch `fork/decouple-and-harden` at the commit that
-introduced `5b23a9e`, plus the running Compose stack (`opendots-app`,
-`opendots-postgres`) on the operator host.
+introduced `5b23a9e`, plus the running Compose stack (`nexbot-app`,
+`nexbot-postgres`) on the operator host.
 
 Method: source review of every new security-relevant module, `npm audit` on the
 full and production trees, live probes against the running deployment, and a
@@ -82,7 +82,7 @@ remaining high is transitive and falls into F5–F7.
    Production must update the manifest to the VPS domain, otherwise events stop
    when the tunnel closes.
 6. **`COMPOSE_PROJECT_NAME` is inherited from the host.** It was `hive-v102` on
-   this machine; every command here passes `-p opendots`. A deployment that
+   this machine; every command here passes `-p nexbot`. A deployment that
    omits it could join an unrelated project.
 
 ## Not verified

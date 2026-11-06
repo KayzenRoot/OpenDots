@@ -1,4 +1,4 @@
-# OpenDots (decoupled fork) — production Compose stack.
+# NexBot (decoupled fork) — production Compose stack.
 #
 # No CopilotKit credentials are used anywhere in this stack: conversations live
 # in the bundled `postgres` service and the app talks only to the model endpoint
@@ -19,11 +19,11 @@ services:
     environment:
       OWNER_TOKEN: ${OWNER_TOKEN:?Set a 24+ character OWNER_TOKEN in .env}
       APP_ORIGIN: ${APP_ORIGIN:-http://localhost:4310}
-      OWNER_ID: ${OWNER_ID:-opendots-owner}
+      OWNER_ID: ${OWNER_ID:-nexbot-owner}
       # SQLite: non-conversation state (dots, spaces, pages, tasks, ...).
-      DATABASE_PATH: /data/opendots.sqlite
+      DATABASE_PATH: /data/nexbot.sqlite
       # Postgres: conversations (REQUIRED). Replaces the CopilotKit service.
-      DATABASE_URL: ${DATABASE_URL:?Set DATABASE_URL in .env, e.g. postgres://opendots:<password>@postgres:5432/opendots}
+      DATABASE_URL: ${DATABASE_URL:?Set DATABASE_URL in .env, e.g. postgres://nexbot:<password>@postgres:5432/nexbot}
       # Optional setup telemetry. Unset (default) => nothing leaves the host.
       SETUP_TELEMETRY_ENDPOINT: ${SETUP_TELEMETRY_ENDPOINT:-}
       VOICE_API_KEY: ${VOICE_API_KEY:-}
@@ -48,7 +48,7 @@ services:
       BROWSER_URL: http://browser:4311
       BROWSER_SECRET: ${BROWSER_SECRET:-}
     volumes:
-      - opendots-data:/data
+      - nexbot-data:/data
     networks:
       - conversations
       - browser-link
@@ -77,7 +77,7 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
       POSTGRES_DB: ${POSTGRES_DB:?Set POSTGRES_DB in .env}
     volumes:
-      - opendots-pgdata:/var/lib/postgresql/data
+      - nexbot-pgdata:/var/lib/postgresql/data
     networks:
       - conversations
     # No `ports:` on purpose: Postgres is reachable only on the internal
@@ -139,5 +139,5 @@ networks:
   app-egress:
   browser-egress:
 volumes:
-  opendots-data:
-  opendots-pgdata:
+  nexbot-data:
+  nexbot-pgdata:

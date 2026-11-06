@@ -1,12 +1,12 @@
 {
   "display_information": {
-    "name": "OpenDots",
-    "description": "Self-hosted OpenDots agent over Slack.",
+    "name": "NexBot",
+    "description": "Self-hosted NexBot agent over Slack.",
     "background_color": "#1a1a1a"
   },
   "features": {
     "bot_user": {
-      "display_name": "OpenDots",
+      "display_name": "NexBot",
       "always_online": false
     }
   },

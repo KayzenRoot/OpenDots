@@ -16,7 +16,7 @@ unchanged and may be referenced for upstream behaviour that this fork keeps.
 
 | File                                             | Description                                                                                                                                        |
 | ------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------- |
-| [OVERVIEW.md](./OVERVIEW.md)                     | What OpenDots is, what this fork is, what changed, who it is for, and the deployment story.                                                        |
+| [OVERVIEW.md](./OVERVIEW.md)                     | What NexBot is, what this fork is, what changed, who it is for, and the deployment story.                                                          |
 | [REQUIREMENTS.md](./REQUIREMENTS.md)             | Functional and non-functional requirements, including the hard "no mandatory CopilotKit key" and full owner-infrastructure requirements.           |
 | [SCOPE.md](./SCOPE.md)                           | In scope, out of scope, deferred items with reasons, and the three accepted scope decisions.                                                       |
 | [ARCHITECTURE.md](./ARCHITECTURE.md)             | Component diagram, chat-turn request flow, server module map, decoupling seam table, why SSE mode + local thread endpoints suffice, build layout.  |

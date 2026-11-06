@@ -49,9 +49,9 @@ export interface SlackServiceDeps {
 }
 
 const PAUSED_MESSAGE =
-  'OpenDots is paused. Resume it in the app before asking me to continue.';
+  'NexBot is paused. Resume it in the app before asking me to continue.';
 const RUN_FAILED_MESSAGE =
-  'I couldn’t complete that request. Please check OpenDots and send a new message when you’re ready to try again.';
+  'I couldn’t complete that request. Please check NexBot and send a new message when you’re ready to try again.';
 /** Slack conversation IDs look like C0123ABCD (public), G… (group) or D… (DM). */
 const SLACK_CONVERSATION_ID = /^[CGD][A-Z0-9]{6,}$/;
 
@@ -218,7 +218,7 @@ export class SlackService {
     }
   }
   /**
-   * The OpenDots conversation for a Slack thread, created and bound on first
+   * The NexBot conversation for a Slack thread, created and bound on first
    * mention. A failure to persist the mapping is reported but still answered:
    * the conversation exists, only follow-up continuity is lost.
    */
@@ -265,7 +265,7 @@ export class SlackService {
         slackPrompt(event),
         AbortSignal.timeout(this.turnTimeoutMs),
         {
-          opendotsSource: 'slack_mention',
+          nexbotSource: 'slack_mention',
           slackChannel: target.channel,
           slackThreadTs: target.threadTs,
         },

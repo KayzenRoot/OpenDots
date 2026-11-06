@@ -1,4 +1,4 @@
-# OpenDots reverse proxy (nginx) — alternative to deployment/Caddyfile.
+# NexBot reverse proxy (nginx) — alternative to deployment/Caddyfile.
 #
 # Prefer Caddy (deployment/Caddyfile) for automatic HTTPS. Use this only if you
 # already run nginx or cannot use Caddy.

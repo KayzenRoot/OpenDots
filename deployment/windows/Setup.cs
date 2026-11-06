@@ -1,10 +1,10 @@
-// OpenDots distributable installer stub.
+// NexBot distributable installer stub.
 //
 // Build (see build-installer.cmd): compile this stub, then append a zip payload
 // to the resulting exe. At run time the zip is read from the end of the file —
 // the exe's own bytes at the front are ignored by the ZIP central directory.
 //
-// Installs into %LOCALAPPDATA%\OpenDots, so no administrator rights are needed,
+// Installs into %LOCALAPPDATA%\NexBot, so no administrator rights are needed,
 // then runs deployment\windows\install.ps1 from the extracted payload.
 using System;
 using System.Diagnostics;
@@ -15,7 +15,7 @@ using System.Windows.Forms;
 
 internal static class Setup
 {
-    private const string AppName = "OpenDots";
+    private const string AppName = "NexBot";
 
     [STAThread]
     private static void Main()

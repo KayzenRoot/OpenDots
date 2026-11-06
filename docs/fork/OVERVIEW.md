@@ -1,8 +1,8 @@
 # Overview
 
-## What OpenDots is
+## What NexBot is
 
-OpenDots is a self-hosted personal-agent application template. It presents a
+NexBot is a self-hosted personal-agent application template. It presents a
 single-owner workspace ("Spaces" containing documents and "Dots" – specialist
 agents), a chat surface, document editing, background/scheduled execution,
 optional voice, optional persistent per-Dot computers, optional MCP

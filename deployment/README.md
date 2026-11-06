@@ -1,6 +1,6 @@
-# OpenDots deployment runbook
+# NexBot deployment runbook
 
-Operate the decoupled, self-hosted OpenDots fork on your own Linux VPS.
+Operate the decoupled, self-hosted NexBot fork on your own Linux VPS.
 **No CopilotKit account, project, or API key is required.** Conversations live in
 your own PostgreSQL; everything else stays in SQLite; the app talks only to the
 OpenAI-compatible model endpoint you choose.
@@ -20,8 +20,8 @@ OpenAI-compatible model endpoint you choose.
 ## 2. First install
 
 ```sh
-git clone <your-fork-url> /opt/opendots
-cd /opt/opendots
+git clone <your-fork-url> /opt/nexbot
+cd /opt/nexbot
 git checkout fork/decouple-and-harden          # pin a commit, do not track main
 cp .env.example .env
 ```
@@ -39,9 +39,9 @@ Fill in `.env`. The required values are:
 | ------------------- | ---------------------------------------------------------------------------- |
 | `OWNER_TOKEN`       | 24+ chars. Bearer login + every `/api` call. Treat as a password.            |
 | `DATABASE_URL`      | `postgres://<POSTGRES_USER>:<POSTGRES_PASSWORD>@postgres:5432/<POSTGRES_DB>` |
-| `POSTGRES_USER`     | Default `opendots`.                                                          |
+| `POSTGRES_USER`     | Default `nexbot`.                                                            |
 | `POSTGRES_PASSWORD` | Must match the password inside `DATABASE_URL`.                               |
-| `POSTGRES_DB`       | Default `opendots`.                                                          |
+| `POSTGRES_DB`       | Default `nexbot`.                                                            |
 | `APP_ORIGIN`        | Your public HTTPS origin, e.g. `https://dots.example.com`.                   |
 | `OPENAI_BASE_URL`   | Model endpoint (OpenAI, Ollama, vLLM, LM Studio, OpenRouter, ...).           |
 | `OPENAI_MODEL`      | Model id served by that endpoint.                                            |
@@ -122,7 +122,7 @@ services:
       - '80:80'
       - '443:443'
     environment:
-      OPENDOTS_DOMAIN: ${OPENDOTS_DOMAIN:?Set OPENDOTS_DOMAIN in .env}
+      NEXBOT_DOMAIN: ${NEXBOT_DOMAIN:?Set NEXBOT_DOMAIN in .env}
       ACME_EMAIL: ${ACME_EMAIL:-admin@example.com}
     volumes:
       - ./deployment/Caddyfile:/etc/caddy/Caddyfile:ro
@@ -171,7 +171,7 @@ host.
 ## 7. Upgrade
 
 ```sh
-cd /opt/opendots
+cd /opt/nexbot
 git fetch && git checkout <new-commit-or-tag>   # pin; do not track main blindly
 docker compose build app browser                # browser only if it changed
 docker compose stop app
@@ -185,7 +185,7 @@ Smoke-test one chat turn and the conversation list in the UI.
 ## 8. Rollback
 
 ```sh
-cd /opt/opendots
+cd /opt/nexbot
 docker compose stop app
 git checkout <previous-commit>
 docker compose build app
@@ -200,14 +200,14 @@ upgrade (Section 9) before starting the old build.
 ## 9. Backup and restore
 
 ```sh
-# Consistent pair into ./backups/opendots-backup-<UTC timestamp>/
+# Consistent pair into ./backups/nexbot-backup-<UTC timestamp>/
 deployment/backup.sh
 
 # Prune older than 30 days instead of the 14-day default, online (no downtime):
 RETENTION_DAYS=30 QUIESCE=0 deployment/backup.sh
 
 # Restore (asks for confirmation; prints the fixed order):
-deployment/restore.sh backups/opendots-backup-20260101-030000
+deployment/restore.sh backups/nexbot-backup-20260101-030000
 ```
 
 - `backup.sh` stops the app by default (`QUIESCE=1`) so the SQLite and Postgres
@@ -222,7 +222,7 @@ deployment/restore.sh backups/opendots-backup-20260101-030000
 - Schedule it from cron (as a user that can run `docker`):
 
   ```cron
-  15 3 * * *  cd /opt/opendots && QUIESCE=0 ./deployment/backup.sh >>/var/log/opendots-backup.log 2>&1
+  15 3 * * *  cd /opt/nexbot && QUIESCE=0 ./deployment/backup.sh >>/var/log/nexbot-backup.log 2>&1
   ```
 
   Use `QUIESCE=1` (default) if you accept a brief stop for a fully consistent
@@ -250,6 +250,6 @@ Dot computer consumes additional RAM/disk (`COMPUTER_MEMORY_BYTES`, default
 ## 11. systemd (optional)
 
 Operators who prefer systemd over Compose restart policies can use
-[`opendots.service.example`](./opendots.service.example). It runs
+[`nexbot.service.example`](./nexbot.service.example). It runs
 `docker compose up` on boot with `NoNewPrivileges` and a dedicated user. Follow
 the install steps in the file header.

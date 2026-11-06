@@ -1,5 +1,5 @@
 #!/bin/sh
-# OpenDots consistent backup: PostgreSQL (custom format) + SQLite, into one
+# NexBot consistent backup: PostgreSQL (custom format) + SQLite, into one
 # timestamped directory, then optional pruning. Safe for cron; fails loudly.
 #
 # The two datastores share conversation IDs, so they must be kept as one pair:
@@ -44,7 +44,7 @@ command -v docker >/dev/null 2>&1 || die 'docker is not installed or not on PATH
 cd "$REPO_ROOT"
 
 timestamp=$(date -u '+%Y%m%d-%H%M%S')
-dest="$BACKUP_DIR/opendots-backup-$timestamp"
+dest="$BACKUP_DIR/nexbot-backup-$timestamp"
 mkdir -p "$dest" || die "cannot create backup directory: $dest"
 
 app_running=0
@@ -72,22 +72,22 @@ else
 fi
 
 # --- PostgreSQL (conversations) ----------------------------------------------
-log "dumping PostgreSQL to $dest/opendots.pgdump (custom format)"
+log "dumping PostgreSQL to $dest/nexbot.pgdump (custom format)"
 # Reads POSTGRES_* from the container's own environment; no secret on the CLI.
 compose exec -T "$PG_SERVICE" sh -c \
   'PGPASSWORD="$POSTGRES_PASSWORD" pg_dump -h 127.0.0.1 -Fc -U "$POSTGRES_USER" -d "$POSTGRES_DB"' \
-  >"$dest/opendots.pgdump" || die 'pg_dump failed'
-[ -s "$dest/opendots.pgdump" ] || die 'pg_dump produced an empty file'
-head -c 5 "$dest/opendots.pgdump" | grep -q 'PGDMP' \
+  >"$dest/nexbot.pgdump" || die 'pg_dump failed'
+[ -s "$dest/nexbot.pgdump" ] || die 'pg_dump produced an empty file'
+head -c 5 "$dest/nexbot.pgdump" | grep -q 'PGDMP' \
   || die 'pg_dump output is not a custom-format archive'
 
 # --- SQLite (non-conversation state) -----------------------------------------
-log "snapshotting SQLite to $dest/opendots.sqlite"
+log "snapshotting SQLite to $dest/nexbot.sqlite"
 if [ -n "$HOST_SQLITE_PATH" ] && [ -f "$HOST_SQLITE_PATH" ] && command -v sqlite3 >/dev/null 2>&1; then
-  rm -f "$dest/opendots.sqlite"
-  sqlite3 "$HOST_SQLITE_PATH" ".backup '$dest/opendots.sqlite'" \
+  rm -f "$dest/nexbot.sqlite"
+  sqlite3 "$HOST_SQLITE_PATH" ".backup '$dest/nexbot.sqlite'" \
     || die 'sqlite3 .backup failed'
-  integrity=$(sqlite3 "$dest/opendots.sqlite" 'PRAGMA integrity_check;')
+  integrity=$(sqlite3 "$dest/nexbot.sqlite" 'PRAGMA integrity_check;')
   [ "$integrity" = "ok" ] || die "SQLite integrity_check failed: $integrity"
 else
   # The app image ships node:sqlite (the app uses it). Its `backup()` function is
@@ -98,8 +98,8 @@ else
     --entrypoint node "$APP_SERVICE" --input-type=module -e '
       import { DatabaseSync, backup } from "node:sqlite";
       import { rmSync } from "node:fs";
-      const src = process.env.DATABASE_PATH ?? "/data/opendots.sqlite";
-      const out = "/backup/opendots.sqlite";
+      const src = process.env.DATABASE_PATH ?? "/data/nexbot.sqlite";
+      const out = "/backup/nexbot.sqlite";
       const db = new DatabaseSync(src);
       db.exec("PRAGMA busy_timeout=5000");
       // Fold the WAL into the main file; not essential (backup() already reads
@@ -117,21 +117,21 @@ else
       }
     ' || die 'container SQLite snapshot failed'
 fi
-[ -s "$dest/opendots.sqlite" ] || die 'SQLite snapshot is empty'
+[ -s "$dest/nexbot.sqlite" ] || die 'SQLite snapshot is empty'
 
 # --- Manifest ----------------------------------------------------------------
 {
   printf 'created_utc=%s\n' "$(date -u '+%Y-%m-%dT%H:%M:%SZ')"
   printf 'git_commit=%s\n' "$(git -C "$REPO_ROOT" rev-parse HEAD 2>/dev/null || printf 'unknown')"
-  printf 'postgres_dump=opendots.pgdump (pg_dump -Fc)\n'
-  printf 'sqlite_file=opendots.sqlite\n'
+  printf 'postgres_dump=nexbot.pgdump (pg_dump -Fc)\n'
+  printf 'sqlite_file=nexbot.sqlite\n'
   printf 'quiesced=%s\n' "$QUIESCE"
 } >"$dest/MANIFEST.txt"
 
 # --- Prune -------------------------------------------------------------------
 if [ "$RETENTION_DAYS" -gt 0 ] 2>/dev/null; then
   log "pruning backups older than ${RETENTION_DAYS} day(s) in $BACKUP_DIR"
-  find "$BACKUP_DIR" -mindepth 1 -maxdepth 1 -type d -name 'opendots-backup-*' \
+  find "$BACKUP_DIR" -mindepth 1 -maxdepth 1 -type d -name 'nexbot-backup-*' \
     -mtime "+$RETENTION_DAYS" -exec rm -rf -- {} + 2>/dev/null \
     || log "WARNING: pruning reported an error (backup itself succeeded)"
 fi

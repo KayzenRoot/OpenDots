@@ -55,9 +55,9 @@ export async function runThreadTurn(
   try {
     signal.throwIfAborted();
     const idPrefix =
-      metadata?.opendotsSource === 'voice_receipt'
+      metadata?.nexbotSource === 'voice_receipt'
         ? voiceReceiptMessagePrefix
-        : metadata?.opendotsSource === 'scheduled_task'
+        : metadata?.nexbotSource === 'scheduled_task'
           ? scheduledTaskMessagePrefix
           : '';
     agent.addMessage({

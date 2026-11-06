@@ -1,8 +1,8 @@
-# Build OpenDots-Setup.exe: a self-extracting installer for end customers.
+# Build NexBot-Setup.exe: a self-extracting installer for end customers.
 #
 #   powershell -ExecutionPolicy Bypass -File deployment\windows\build-installer.ps1
 #
-# Output: dist\OpenDots-Setup.exe
+# Output: dist\NexBot-Setup.exe
 #
 # The payload is copied from an explicit allowlist, so no .env.local, no
 # credentials and no node_modules/dist artefacts can end up inside the installer.
@@ -12,7 +12,7 @@ $repo = (Resolve-Path (Join-Path $PSScriptRoot '..\..')).Path
 $dist = Join-Path $repo 'dist'
 $stage = Join-Path $dist 'payload'
 $zip = Join-Path $dist 'payload.zip'
-$out = Join-Path $dist 'OpenDots-Setup.exe'
+$out = Join-Path $dist 'NexBot-Setup.exe'
 $csc = Join-Path $env:WINDIR 'Microsoft.NET\Framework64\v4.0.30319\csc.exe'
 if (-not (Test-Path $csc)) { $csc = Join-Path $env:WINDIR 'Microsoft.NET\Framework\v4.0.30319\csc.exe' }
 if (-not (Test-Path $csc)) { throw '.NET Framework 4.x (csc.exe) is required to build the installer.' }
@@ -42,16 +42,16 @@ foreach ($f in $files) {
 foreach ($d in $dirs) {
     $src = Join-Path $repo $d
     if (-not (Test-Path $src)) { continue }
-    Copy-Item $src (Join-Path $stage $d) -Recurse -Force -Exclude @('node_modules', 'dist', '.env.local', 'OpenDots-Setup.exe')
+    Copy-Item $src (Join-Path $stage $d) -Recurse -Force -Exclude @('node_modules', 'dist', '.env.local', 'NexBot-Setup.exe')
 }
 
 # Ship the compiled desktop launcher if it has been built.
-$launcher = Join-Path $repo 'deployment\windows\OpenDots.exe'
+$launcher = Join-Path $repo 'deployment\windows\NexBot.exe'
 if (-not (Test-Path $launcher)) {
     Write-Host 'Building desktop launcher...' -ForegroundColor Cyan
     & (Join-Path $PSScriptRoot 'build-launcher.cmd') | Out-Null
 }
-if (Test-Path $launcher) { Copy-Item $launcher (Join-Path $stage 'deployment\windows\OpenDots.exe') -Force }
+if (Test-Path $launcher) { Copy-Item $launcher (Join-Path $stage 'deployment\windows\NexBot.exe') -Force }
 
 # Refuse to ship anything secret-looking.
 # Match credential SHAPES, not the pattern names, so this script does not flag
@@ -88,4 +88,4 @@ Remove-Item $stub -Force
 $mb = [Math]::Round((Get-Item $out).Length / 1MB, 1)
 Write-Host ''
 Write-Host "Built $out ($mb MB)" -ForegroundColor Green
-Write-Host 'Ship that single file. It installs to %LOCALAPPDATA%\OpenDots and needs only Docker.' -ForegroundColor DarkGray
+Write-Host 'Ship that single file. It installs to %LOCALAPPDATA%\NexBot and needs only Docker.' -ForegroundColor DarkGray

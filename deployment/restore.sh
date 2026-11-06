@@ -1,5 +1,5 @@
 #!/bin/sh
-# OpenDots restore: PostgreSQL + SQLite from a backup produced by backup.sh.
+# NexBot restore: PostgreSQL + SQLite from a backup produced by backup.sh.
 # Loud and idempotent: the order is fixed and every step is printed.
 #
 # Order (documented, do not reorder):
@@ -47,8 +47,8 @@ if [ "$#" -ne 1 ]; then
 fi
 backup_dir=$1
 [ -d "$backup_dir" ] || die "backup directory not found: $backup_dir"
-[ -f "$backup_dir/opendots.pgdump" ] || die "missing $backup_dir/opendots.pgdump"
-[ -f "$backup_dir/opendots.sqlite" ] || die "missing $backup_dir/opendots.sqlite"
+[ -f "$backup_dir/nexbot.pgdump" ] || die "missing $backup_dir/nexbot.pgdump"
+[ -f "$backup_dir/nexbot.sqlite" ] || die "missing $backup_dir/nexbot.sqlite"
 
 log "about to restore from: $backup_dir"
 log "plan:"
@@ -72,7 +72,7 @@ compose stop "$APP_SERVICE" >/dev/null || die "could not stop $APP_SERVICE"
 
 # --- 2. restore PostgreSQL ---------------------------------------------------
 log "step 2/5: restoring PostgreSQL"
-compose cp "$backup_dir/opendots.pgdump" "$PG_SERVICE:/tmp/opendots-restore.pgdump" \
+compose cp "$backup_dir/nexbot.pgdump" "$PG_SERVICE:/tmp/nexbot-restore.pgdump" \
   || die 'could not copy the PostgreSQL dump into the postgres container'
 compose exec -T "$PG_SERVICE" sh -c '
   set -eu
@@ -81,9 +81,9 @@ compose exec -T "$PG_SERVICE" sh -c '
   dropdb --if-exists --force -h 127.0.0.1 -U "$POSTGRES_USER" "$POSTGRES_DB"
   createdb -h 127.0.0.1 -U "$POSTGRES_USER" -O "$POSTGRES_USER" "$POSTGRES_DB"
   pg_restore -h 127.0.0.1 -U "$POSTGRES_USER" -d "$POSTGRES_DB" \
-    --no-owner --no-privileges -Fc /tmp/opendots-restore.pgdump
+    --no-owner --no-privileges -Fc /tmp/nexbot-restore.pgdump
 ' || die 'PostgreSQL restore failed'
-compose exec -T "$PG_SERVICE" rm -f /tmp/opendots-restore.pgdump >/dev/null 2>&1 || true
+compose exec -T "$PG_SERVICE" rm -f /tmp/nexbot-restore.pgdump >/dev/null 2>&1 || true
 
 # --- 3. restore SQLite -------------------------------------------------------
 log "step 3/5: restoring SQLite"
@@ -94,9 +94,9 @@ compose run -T --rm --no-deps --user 0:0 --cap-add DAC_OVERRIDE --cap-add CHOWN 
   -v "$backup_dir:/restore:ro" \
   --entrypoint sh "$APP_SERVICE" -c '
     set -eu
-    db="${DATABASE_PATH:-/data/opendots.sqlite}"
+    db="${DATABASE_PATH:-/data/nexbot.sqlite}"
     rm -f "$db" "$db-wal" "$db-shm"
-    cp /restore/opendots.sqlite "$db"
+    cp /restore/nexbot.sqlite "$db"
     # chmod while root still owns the fresh copy: after chown it belongs to
     # `node`, and root without CAP_FOWNER could not change its mode.
     chmod 0644 "$db"

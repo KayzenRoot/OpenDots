@@ -44,7 +44,7 @@ Requirement IDs are `FR-*` (functional), `NFR-*` (non-functional), `SEC-*`
 | FR-031 | Web search (`WEB_SEARCH_PROVIDER=parallel\|browser\|disabled`) MUST remain optional; `disabled` MUST work with no provider. | DONE (upstream, retained) |
 | FR-032 | Composio connected apps MUST remain optional.                                                                               | DONE (upstream, retained) |
 | FR-033 | Persisted computers MUST remain optional, one per Dot, with only the supervisor mounting the Docker socket.                 | DONE (upstream, retained) |
-| FR-034 | HTTP API access to OpenDots by external agents/clients MUST be owner-authenticated.                                         | DONE (upstream, retained) |
+| FR-034 | HTTP API access to NexBot by external agents/clients MUST be owner-authenticated.                                           | DONE (upstream, retained) |
 
 ## 2. Non-functional requirements
 

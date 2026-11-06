@@ -58,7 +58,7 @@ it('runs server turns through our own SSE runtime and tears down the stream', as
       'thread',
       'Record my call',
       new AbortController().signal,
-      { opendotsSource: 'voice_receipt' },
+      { nexbotSource: 'voice_receipt' },
     ),
   ).toBe('Confirmed receipt');
   expect(fetcher).toHaveBeenCalledWith(
@@ -75,10 +75,10 @@ it('runs server turns through our own SSE runtime and tears down the stream', as
   );
   expect(sdk.message).toHaveBeenCalledWith(
     expect.objectContaining({
-      id: expect.stringMatching(/^opendots:voice_receipt:/),
+      id: expect.stringMatching(/^nexbot:voice_receipt:/),
       role: 'user',
       content: 'Record my call',
-      metadata: { opendotsSource: 'voice_receipt' },
+      metadata: { nexbotSource: 'voice_receipt' },
     }),
   );
   expect(sdk.unsubscribe).toHaveBeenCalledOnce();
@@ -102,15 +102,15 @@ it('marks scheduled user prompts while preserving their text and user role', asy
     'thread',
     'Check the nightly report',
     new AbortController().signal,
-    { opendotsSource: 'scheduled_task' },
+    { nexbotSource: 'scheduled_task' },
   );
 
   expect(sdk.message).toHaveBeenCalledWith(
     expect.objectContaining({
-      id: expect.stringMatching(/^opendots:scheduled_task:/),
+      id: expect.stringMatching(/^nexbot:scheduled_task:/),
       role: 'user',
       content: 'Check the nightly report',
-      metadata: { opendotsSource: 'scheduled_task' },
+      metadata: { nexbotSource: 'scheduled_task' },
     }),
   );
 });

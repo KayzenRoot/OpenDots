@@ -227,7 +227,7 @@ it('runs an allowlisted mention once and ignores a retry with the same event id'
     'Help',
     expect.anything(),
     expect.objectContaining({
-      opendotsSource: 'slack_mention',
+      nexbotSource: 'slack_mention',
       slackChannel: 'C123',
       slackThreadTs: '100.1',
     }),

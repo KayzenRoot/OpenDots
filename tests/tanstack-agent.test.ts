@@ -369,7 +369,7 @@ it('reports a turn that hits the time limit as a RUN_ERROR instead of ending sil
   }
 });
 
-const databaseUrl = process.env.OPENDOTS_TEST_DATABASE_URL;
+const databaseUrl = process.env.NEXBOT_TEST_DATABASE_URL;
 const describePostgres = databaseUrl ? describe : describe.skip;
 
 describePostgres('local skill tools (PostgreSQL)', () => {

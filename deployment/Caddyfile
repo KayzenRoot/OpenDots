@@ -1,11 +1,11 @@
-# OpenDots reverse proxy (Caddy 2) with automatic HTTPS.
+# NexBot reverse proxy (Caddy 2) with automatic HTTPS.
 #
 # Caddy obtains and renews Let's Encrypt certificates automatically, so the only
 # requirement is that :80 and :443 are reachable from the internet and that
-# OPENDOTS_DOMAIN resolves to this host. This is the preferred proxy.
+# NEXBOT_DOMAIN resolves to this host. This is the preferred proxy.
 #
 # Set before starting Caddy:
-#   OPENDOTS_DOMAIN   your public domain (placeholder default below)
+#   NEXBOT_DOMAIN   your public domain (placeholder default below)
 #   ACME_EMAIL        contact address for ACME (placeholder default below)
 #
 # How to run Caddy:
@@ -24,7 +24,7 @@
 	# acme_ca https://acme-staging-v02.api.letsencrypt.org/directory
 }
 
-{$OPENDOTS_DOMAIN:dots.example.com} {
+{$NEXBOT_DOMAIN:dots.example.com} {
 	encode zstd gzip
 
 	header {
@@ -46,7 +46,7 @@
 	}
 
 	log {
-		output file /var/log/caddy/opendots.log
+		output file /var/log/caddy/nexbot.log
 		format json
 	}
 

@@ -1,10 +1,10 @@
-# Report the state of the local OpenDots test stack.
+# Report the state of the local NexBot test stack.
 $ErrorActionPreference = 'Continue'
 
 $repo = (Resolve-Path (Join-Path $PSScriptRoot '..\..')).Path
 Set-Location $repo
 
-docker compose -p opendots --env-file .env.local -f compose.yml -f compose.local.yml ps
+docker compose -p nexbot --env-file .env.local -f compose.yml -f compose.local.yml ps
 Write-Host ''
 
 function Probe($name, $url) {

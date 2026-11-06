@@ -1,6 +1,6 @@
 # Local test overlay. Use it together with the base stack:
 #
-#   docker compose -p opendots --env-file ../../compose.env \
+#   docker compose -p nexbot --env-file ../../compose.env \
 #     -f compose.yml -f compose.local.yml up -d
 #
 # It adds a reverse proxy on 127.0.0.1:8080 so there is one stable URL to test

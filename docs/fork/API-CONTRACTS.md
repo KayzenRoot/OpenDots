@@ -10,16 +10,16 @@ work order.
 
 Applied to every `/api/*` request by middleware in `src/server/app.ts`:
 
-| Guard                     | Behaviour                                                                                                                                                                                                     |
-| ------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Owner bearer token        | When `OWNER_TOKEN` is set, the `Authorization: Bearer <token>` value is compared to it with `timingSafeEqual` (constant-time). Failure → `401 {"error":"Enter your owner access token to unlock OpenDots."}`. |
-| Host allowlist (no token) | If no `OWNER_TOKEN` is configured, the request hostname must be `localhost`, `127.0.0.1`, `[::1]`, or a hostname from `APP_ORIGIN`. Otherwise → `403 {"error":"Unrecognized host."}`.                         |
-| Origin allowlist          | If an `Origin` header is present, it must be in `APP_ORIGIN` (or, when unset, equal to the request origin). Otherwise → `403 {"error":"Cross-origin requests are not allowed."}`.                             |
-| Fetch metadata            | `sec-fetch-site: cross-site` → `403 {"error":"Cross-site requests are not allowed."}`.                                                                                                                        |
-| Body limit                | `/api/*` bodies are capped at 1,000,000 bytes → `413 {"error":"Request is too large."}`.                                                                                                                      |
-| Content type              | Non-`GET`/`HEAD` requests must send `content-type: application/json` → otherwise `415 {"error":"Use application/json."}`.                                                                                     |
-| Cache                     | `/api/*` responses are `Cache-Control: no-store`.                                                                                                                                                             |
-| Startup guard             | Binding to a non-loopback `HOST` requires an `OWNER_TOKEN` of at least 24 characters (`src/server/index.ts` throws otherwise).                                                                                |
+| Guard                     | Behaviour                                                                                                                                                                                                   |
+| ------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Owner bearer token        | When `OWNER_TOKEN` is set, the `Authorization: Bearer <token>` value is compared to it with `timingSafeEqual` (constant-time). Failure → `401 {"error":"Enter your owner access token to unlock NexBot."}`. |
+| Host allowlist (no token) | If no `OWNER_TOKEN` is configured, the request hostname must be `localhost`, `127.0.0.1`, `[::1]`, or a hostname from `APP_ORIGIN`. Otherwise → `403 {"error":"Unrecognized host."}`.                       |
+| Origin allowlist          | If an `Origin` header is present, it must be in `APP_ORIGIN` (or, when unset, equal to the request origin). Otherwise → `403 {"error":"Cross-origin requests are not allowed."}`.                           |
+| Fetch metadata            | `sec-fetch-site: cross-site` → `403 {"error":"Cross-site requests are not allowed."}`.                                                                                                                      |
+| Body limit                | `/api/*` bodies are capped at 1,000,000 bytes → `413 {"error":"Request is too large."}`.                                                                                                                    |
+| Content type              | Non-`GET`/`HEAD` requests must send `content-type: application/json` → otherwise `415 {"error":"Use application/json."}`.                                                                                   |
+| Cache                     | `/api/*` responses are `Cache-Control: no-store`.                                                                                                                                                           |
+| Startup guard             | Binding to a non-loopback `HOST` requires an `OWNER_TOKEN` of at least 24 characters (`src/server/index.ts` throws otherwise).                                                                              |
 
 Origin resolution: `resolveAppOrigins` (`src/server/app-origin.ts`) splits
 `APP_ORIGIN` on commas; in development it defaults to
@@ -48,7 +48,7 @@ before dispatch. It:
   requires the path `agentId` and any body/query `agentId` to agree.
 - Requires every referenced `threadId` to be owned by the workspace
   (`workspace.requireThread`), and requires path/body/query `threadId` to agree.
-- Rejects on failure with `403 {"error":"This runtime route is not enabled in OpenDots."}`.
+- Rejects on failure with `403 {"error":"This runtime route is not enabled in NexBot."}`.
 
 ## 2. Workspace, pages, computers, connections
 

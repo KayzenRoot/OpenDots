@@ -12,7 +12,7 @@ export const SLACK_EVENT_RETENTION_MS = 24 * 60 * 60 * 1000;
  *
  * - `slack_events` de-duplicates Slack retries by `event_id` (bounded to
  *   {@link SLACK_EVENT_RETENTION_MS}).
- * - `slack_threads` maps a Slack conversation + thread to the OpenDots
+ * - `slack_threads` maps a Slack conversation + thread to the NexBot
  *   conversation it continues, mirroring the `thread_bindings` idea.
  */
 export class SlackStore {

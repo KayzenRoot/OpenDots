@@ -1,6 +1,6 @@
 # Security
 
-Fork-specific security posture for the decoupled OpenDots fork. This document
+Fork-specific security posture for the decoupled NexBot fork. This document
 supplements, and does not replace, the upstream `SECURITY.md` (retained in the
 repository root). Where upstream's intended boundary still applies, it is
 restated; where the fork changes the exposure, it is called out. Each item is
@@ -84,7 +84,7 @@ explicit about whether it is hardened today or not yet hardened.
 - The app talks to the supervisor over HTTP with
   `COMPUTER_SUPERVISOR_URL`/`COMPUTER_SUPERVISOR_TOKEN`, and per-computer
   requests are authenticated with an HMAC (`createHmac('sha256', COMPUTER_TOKEN)`
-  over `opendots-computer:<id>`, `src/server/computer-service.ts`).
+  over `nexbot-computer:<id>`, `src/server/computer-service.ts`).
 - **Not hardened:** the supervisor's own container sandboxing and image trust
   are upstream OpenBot concerns, not re-reviewed here.
 
@@ -127,7 +127,7 @@ explicit about whether it is hardened today or not yet hardened.
 - Computer filesystem access, when enabled, happens inside the per-Dot
   computer container, not on the host, and is bounded by computer permissions.
 - **Not hardened:** the app's own process has read/write access to
-  `data/opendots.sqlite`; container filesystem hardening relies on the compose
+  `data/nexbot.sqlite`; container filesystem hardening relies on the compose
   settings in §5, not on an application sandbox.
 
 ## 9. Rate limiting

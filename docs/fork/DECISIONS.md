@@ -11,7 +11,7 @@ Status values: Accepted, Superseded, Deprecated.
 ## ADR-0001 — Fork strategy: GitHub fork preserving upstream relationship
 
 - **Status:** Accepted.
-- **Context:** OpenDots is MIT-licensed (Copyright (c) Atai Barkai). The owner
+- **Context:** NexBot is MIT-licensed (Copyright (c) Atai Barkai). The owner
   needs to change the runtime's reliance on CopilotKit-hosted services while
   keeping the ability to pull upstream fixes. A clean-room rewrite would discard
   history and attribution and make future merges impractical.
@@ -62,7 +62,7 @@ Status values: Accepted, Superseded, Deprecated.
 - **Decision:** PostgreSQL stores conversations only: `conversations`,
   `messages`, `thread_runs`, `thread_events`, `thread_state`, plus the `skills`
   store and `schema_migrations`. All other state remains in SQLite
-  (`data/opendots.sqlite`).
+  (`data/nexbot.sqlite`).
 - **Consequences:** Two datastores, joined by application-level IDs only (see
   [DATA-MODEL.md](./DATA-MODEL.md) §2.1). No shared transaction; backups and
   restores must be paired. Contained blast radius for the migration.

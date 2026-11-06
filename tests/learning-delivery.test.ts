@@ -88,7 +88,7 @@ it('never contacts a hosted service and exposes no skill tools without a local s
   }
 });
 
-const databaseUrl = process.env.OPENDOTS_TEST_DATABASE_URL;
+const databaseUrl = process.env.NEXBOT_TEST_DATABASE_URL;
 const describePostgres = databaseUrl ? describe : describe.skip;
 
 describePostgres('local skill delivery (PostgreSQL)', () => {
