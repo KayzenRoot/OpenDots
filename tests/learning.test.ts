@@ -3,9 +3,14 @@ import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, expect, it } from 'vitest';
-import type { RunAgentInput } from '@ag-ui/core';
 import { WorkspaceStore } from '../src/server/workspace.js';
-import { learningSelector } from '../src/server/learning.js';
+import {
+  formatSkillCatalog,
+  loadSkill,
+  readSkillFile,
+  skillDescription,
+  type DeliverableSkill,
+} from '../src/server/learning.js';
 
 const cleanup: (() => void)[] = [];
 afterEach(() =>
@@ -20,17 +25,8 @@ function fixture() {
   const dot = ws.dots()[0];
   return { ws, dot };
 }
-const input = (threadId: string): RunAgentInput => ({
-  threadId,
-  runId: 'run',
-  state: {},
-  messages: [],
-  tools: [],
-  context: [],
-  forwardedProps: {},
-});
 
-it('freezes container assignments, including disabled conversations, when a Dot changes', () => {
+it('freezes legacy container assignments, including disabled conversations, when a Dot changes', () => {
   const { ws, dot } = fixture();
   ws.bindThread('disabled', dot.id, 'Before learning');
   ws.updateDot(dot.id, {
@@ -57,7 +53,7 @@ it('freezes container assignments, including disabled conversations, when a Dot 
 });
 
 it('migrates legacy threads without enrolling them and persists configuration across restart', () => {
-  const dir = mkdtempSync(join(tmpdir(), 'opendots-learning-'));
+  const dir = mkdtempSync(join(tmpdir(), 'nexbot-learning-'));
   cleanup.push(() => rmSync(dir, { recursive: true, force: true }));
   const path = join(dir, 'workspace.sqlite');
   const legacy = new DatabaseSync(path);
@@ -83,65 +79,7 @@ it('migrates legacy threads without enrolling them and persists configuration ac
   });
 });
 
-it('selects only owned web threads and binds the configured channel Dot before its first run', () => {
-  const { ws, dot } = fixture();
-  ws.updateDot(dot.id, {
-    ...dot,
-    learningContainerId: 'research',
-    skillDeliveryEnabled: true,
-  });
-  ws.bindThread('web', dot.id, 'Web');
-  const select = learningSelector(ws, dot.id);
-  const user = { id: 'owner', name: 'Owner' };
-  expect(
-    select({ surface: 'web', user, agentId: dot.id, input: input('web') }),
-  ).toBe('research');
-  expect(() =>
-    select({ surface: 'web', user, agentId: dot.id, input: input('unknown') }),
-  ).toThrow();
-  expect(
-    select({
-      surface: 'channel',
-      user,
-      agentId: dot.id,
-      input: input('slack'),
-    }),
-  ).toBe('research');
-  expect(ws.requireThread('slack', dot.id).learningContainerId).toBe(
-    'research',
-  );
-  expect(() =>
-    select({
-      surface: 'channel',
-      user: null,
-      agentId: dot.id,
-      input: input('unauthorized'),
-    }),
-  ).toThrow();
-  expect(() =>
-    select({
-      surface: 'web',
-      user: { id: 'other', name: 'Other' },
-      agentId: dot.id,
-      input: input('web'),
-    }),
-  ).toThrow();
-  const other = ws.createDot(dot.spaceId, 'Other', 'Other role', true, true);
-  expect(() =>
-    select({
-      surface: 'channel',
-      user,
-      agentId: other.id,
-      input: input('wrong-dot'),
-    }),
-  ).toThrow();
-  expect(() =>
-    select({ surface: 'web', user, agentId: other.id, input: input('web') }),
-  ).toThrow();
-  expect(ws.conversations()).toHaveLength(2);
-});
-
-it('rejects invalid container IDs and delivery without a container', () => {
+it('rejects invalid skill set IDs and delivery without one', () => {
   const { ws, dot } = fixture();
   for (const learningContainerId of [
     '',
@@ -163,4 +101,47 @@ it('rejects invalid container IDs and delivery without a container', () => {
     }),
   ).toThrow();
   expect(ws.dot(dot.id)?.learningContainerId).toBeNull();
+});
+
+const skill = (name: string, body: string, revision = 1): DeliverableSkill => ({
+  name,
+  description: skillDescription(body, name),
+  body,
+  revision,
+});
+
+it('derives a catalog description from frontmatter, then prose, then the name', () => {
+  expect(
+    skillDescription(
+      '---\nname: evidence-review\ndescription: Review evidence before making claims.\n---\nCompare sources.',
+      'evidence-review',
+    ),
+  ).toBe('Review evidence before making claims.');
+  expect(skillDescription('# Heading\n\nFirst prose line.', 'x')).toBe(
+    'First prose line.',
+  );
+  expect(skillDescription('', 'fallback')).toBe('fallback');
+});
+
+it('formats a deterministic catalog and resolves skill content by exact name', () => {
+  expect(formatSkillCatalog([])).toContain('No learned skills are available.');
+  const skills = [
+    skill('zeta', 'Zeta body'),
+    skill('alpha', '---\ndescription: Alpha skill.\n---\nAlpha body'),
+  ];
+  const catalog = formatSkillCatalog(skills);
+  expect(catalog).toContain('copilotkit_load_skill');
+  expect(catalog).toContain('copilotkit_read_skill_file');
+  // Names are ordered deterministically regardless of input order.
+  expect(catalog.indexOf('"alpha"')).toBeLessThan(catalog.indexOf('"zeta"'));
+  expect(JSON.parse(loadSkill(skills, 'alpha'))).toEqual({
+    skill_name: 'alpha',
+    content: skills[1].body,
+    files: [],
+  });
+  expect(readSkillFile(skills, 'zeta', 'SKILL.md')).toBe('Zeta body');
+  expect(() => loadSkill(skills, 'missing')).toThrow('Skill is unavailable.');
+  expect(() => readSkillFile(skills, 'zeta', 'notes.txt')).toThrow(
+    'Skill file is unavailable.',
+  );
 });

@@ -3,7 +3,7 @@ dist/
 .env
 .env.*
 !.env.example
-.opendots/
+.nexbot/
 artifacts/
 playwright-report/
 test-results/
@@ -18,3 +18,7 @@ data/
 
 # Local hosted-project selection
 .copilotkit/
+
+# Compiled launcher (build with deployment/windows/build-launcher.cmd)
+deployment/windows/NexBot.exe
+logs/

@@ -7,7 +7,7 @@ export function validateRuntimeScope(
   const url = new URL(request.url);
   const prefix = '/api/copilotkit/';
   const deny = () => {
-    throw new Error('This runtime route is not enabled in OpenDots.');
+    throw new Error('This runtime route is not enabled in NexBot.');
   };
   if (!url.pathname.startsWith(prefix)) return deny();
   const path = url.pathname.slice(prefix.length);
@@ -25,7 +25,8 @@ export function validateRuntimeScope(
   // Match the whole path. The SDK accepts suffix matches, so accepting arbitrary
   // prefixes here would validate a different thread than the SDK dispatches.
   if (path === 'info' || path === 'threads') methods = ['GET'];
-  else if (path === 'threads/subscribe') methods = ['POST'];
+  // Local thread backend: the SSE runtime serves this itself (no Intelligence).
+  else if (path === 'threads/clear') methods = ['POST'];
   else if ((match = path.match(/^agent\/([^/]+)\/(run|connect|suggest)$/))) {
     agentId = id(match[1]);
     threadId = typeof data.threadId === 'string' ? data.threadId : undefined;
@@ -42,8 +43,12 @@ export function validateRuntimeScope(
     methods = match[2] === 'archive' ? ['POST'] : ['GET'];
   } else if ((match = path.match(/^threads\/([^/]+)$/))) {
     // Reserved suffixes resolve before threads/update inside the SDK router.
+    // `subscribe` and the inspector/transcribe/annotate/debug routes require
+    // the hosted Intelligence service, which this fork does not use, so they
+    // stay denied rather than being validated as thread ids.
     if (
       [
+        'subscribe',
         'clear',
         'info',
         'inspector-metadata',

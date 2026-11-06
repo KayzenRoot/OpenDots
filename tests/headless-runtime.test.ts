@@ -7,15 +7,11 @@ const sdk = vi.hoisted(() => ({
   abort: vi.fn(),
   message: vi.fn(),
   config: vi.fn(),
-  thread: vi.fn(),
   unsubscribe: vi.fn(),
   subscriber: undefined as AgentSubscriber | undefined,
 }));
-vi.mock('@copilotkit/core', () => ({
-  IntelligenceAgent: class {
-    set threadId(id: string) {
-      sdk.thread(id);
-    }
+vi.mock('@ag-ui/client', () => ({
+  HttpAgent: class {
     constructor(config: unknown) {
       sdk.config(config);
     }
@@ -44,14 +40,10 @@ beforeEach(() => {
 afterEach(() => {
   vi.unstubAllGlobals();
 });
-it('executes server turns without browser-only Core discovery and tears down the SDK stream', async () => {
-  const fetcher = vi.fn<typeof fetch>().mockResolvedValue(
-    Response.json({
-      mode: 'intelligence',
-      intelligence: { wsUrl: 'wss://example.com/client' },
-      agents: { dot: {} },
-    }),
-  );
+const info = (agents: Record<string, unknown>) =>
+  Response.json({ mode: 'sse', agents });
+it('runs server turns through our own SSE runtime and tears down the stream', async () => {
+  const fetcher = vi.fn<typeof fetch>().mockResolvedValue(info({ dot: {} }));
   vi.stubGlobal('fetch', fetcher);
   sdk.run.mockResolvedValue({
     newMessages: [
@@ -66,7 +58,7 @@ it('executes server turns without browser-only Core discovery and tears down the
       'thread',
       'Record my call',
       new AbortController().signal,
-      { opendotsSource: 'voice_receipt' },
+      { nexbotSource: 'voice_receipt' },
     ),
   ).toBe('Confirmed receipt');
   expect(fetcher).toHaveBeenCalledWith(
@@ -76,32 +68,26 @@ it('executes server turns without browser-only Core discovery and tears down the
   expect(sdk.config).toHaveBeenCalledWith(
     expect.objectContaining({
       agentId: 'dot',
-      runtimeUrl: 'https://runtime.test',
-      url: 'wss://example.com/client',
+      threadId: 'thread',
+      url: 'https://runtime.test/agent/dot/run',
+      headers: { Authorization: 'Bearer test' },
     }),
   );
   expect(sdk.message).toHaveBeenCalledWith(
     expect.objectContaining({
-      id: expect.stringMatching(/^opendots:voice_receipt:/),
+      id: expect.stringMatching(/^nexbot:voice_receipt:/),
       role: 'user',
       content: 'Record my call',
-      metadata: { opendotsSource: 'voice_receipt' },
+      metadata: { nexbotSource: 'voice_receipt' },
     }),
   );
-  expect(sdk.thread).toHaveBeenCalledWith('thread');
   expect(sdk.unsubscribe).toHaveBeenCalledOnce();
   expect(sdk.detach).toHaveBeenCalledOnce();
 });
 it('marks scheduled user prompts while preserving their text and user role', async () => {
   vi.stubGlobal(
     'fetch',
-    vi.fn<typeof fetch>().mockResolvedValue(
-      Response.json({
-        mode: 'intelligence',
-        intelligence: { wsUrl: 'wss://example.com/client' },
-        agents: { dot: {} },
-      }),
-    ),
+    vi.fn<typeof fetch>().mockResolvedValue(info({ dot: {} })),
   );
   sdk.run.mockResolvedValue({
     newMessages: [
@@ -116,19 +102,19 @@ it('marks scheduled user prompts while preserving their text and user role', asy
     'thread',
     'Check the nightly report',
     new AbortController().signal,
-    { opendotsSource: 'scheduled_task' },
+    { nexbotSource: 'scheduled_task' },
   );
 
   expect(sdk.message).toHaveBeenCalledWith(
     expect.objectContaining({
-      id: expect.stringMatching(/^opendots:scheduled_task:/),
+      id: expect.stringMatching(/^nexbot:scheduled_task:/),
       role: 'user',
       content: 'Check the nightly report',
-      metadata: { opendotsSource: 'scheduled_task' },
+      metadata: { nexbotSource: 'scheduled_task' },
     }),
   );
 });
-it('rejects failed runtime discovery instead of waiting for browser status indefinitely', async () => {
+it('rejects failed runtime discovery instead of running the agent', async () => {
   vi.stubGlobal(
     'fetch',
     vi
@@ -148,16 +134,7 @@ it('rejects failed runtime discovery instead of waiting for browser status indef
   expect(sdk.run).not.toHaveBeenCalled();
 });
 it('rejects a Dot missing from runtime metadata', async () => {
-  vi.stubGlobal(
-    'fetch',
-    vi.fn<typeof fetch>().mockResolvedValue(
-      Response.json({
-        mode: 'intelligence',
-        intelligence: { wsUrl: 'wss://example.com' },
-        agents: {},
-      }),
-    ),
-  );
+  vi.stubGlobal('fetch', vi.fn<typeof fetch>().mockResolvedValue(info({})));
   await expect(
     runThreadTurn(
       'https://runtime.test',
@@ -173,13 +150,7 @@ it('rejects a Dot missing from runtime metadata', async () => {
 it('aborts the running SDK turn and releases the subscriber on cancellation', async () => {
   vi.stubGlobal(
     'fetch',
-    vi.fn<typeof fetch>().mockResolvedValue(
-      Response.json({
-        mode: 'intelligence',
-        intelligence: { wsUrl: 'wss://example.com/client' },
-        agents: { dot: {} },
-      }),
-    ),
+    vi.fn<typeof fetch>().mockResolvedValue(info({ dot: {} })),
   );
   const controller = new AbortController();
   sdk.run.mockImplementation(async () => {
@@ -207,13 +178,7 @@ it('aborts the running SDK turn and releases the subscriber on cancellation', as
 it('cleans up rejected SDK turns while preserving the error', async () => {
   vi.stubGlobal(
     'fetch',
-    vi.fn<typeof fetch>().mockResolvedValue(
-      Response.json({
-        mode: 'intelligence',
-        intelligence: { wsUrl: 'wss://example.com/client' },
-        agents: { dot: {} },
-      }),
-    ),
+    vi.fn<typeof fetch>().mockResolvedValue(info({ dot: {} })),
   );
   sdk.run.mockRejectedValue(new Error('Runtime socket failed'));
   await expect(

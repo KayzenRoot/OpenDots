@@ -1,4 +1,5 @@
 import { computerRoutes } from './computer-routes.js';
+import { modelRoutes } from './model-routes.js';
 import { connectionRoutes } from './connection-routes.js';
 import { Hono } from 'hono';
 import { bodyLimit } from 'hono/body-limit';
@@ -8,6 +9,8 @@ import { Store } from './store.js';
 import { Runner } from './runner.js';
 import { configured, type Config } from './research.js';
 import type { Platform } from './platform.js';
+import { slackRoutes } from './slack-service.js';
+import { FixedWindowLimiter, clientKey } from './rate-limit.js';
 import { VoiceService } from './voice.js';
 import { workspaceRoutes } from './workspace-routes.js';
 const interval = z.number().int().min(60).max(31_536_000).nullable();
@@ -35,6 +38,49 @@ export function createApp({
       onError: (c) => c.json({ error: 'Request is too large.' }, 413),
     }),
   );
+  // Registered before the origin/owner middleware below. Slack cannot present
+  // an owner token, so this route authenticates with the Slack signing secret
+  // instead: a constant-time HMAC over the raw body plus a five-minute replay
+  // window (see slack-service.ts). It is intentionally reachable without an
+  // owner token and is safe to expose because no event runs an agent unless the
+  // workspace and acting user both pass the SLACK_TEAM_ID / SLACK_USER_IDS
+  // allowlist. No Slack-supplied id is trusted before that check.
+  // The Slack webhook is reachable without an owner token by design, so it is
+  // the one public write path: cap it per client. Slack's own retries and a
+  // busy workspace stay well inside these numbers, while a flood cannot spend
+  // the operator's model budget.
+  const slackLimiter = new FixedWindowLimiter(120, 60_000);
+  // Token guessing: generous for a human, useless for a script.
+  const authFailures = new FixedWindowLimiter(40, 60_000);
+  app.use('/api/slack/*', async (c, next) => {
+    const decision = slackLimiter.check(clientKey(c.req.raw.headers));
+    if (!decision.allowed) {
+      c.header('Retry-After', String(decision.retryAfterSeconds));
+      return c.json({ error: 'Too many requests.' }, 429);
+    }
+    await next();
+  });
+  if (platform) app.route('/api/slack', slackRoutes(platform.slack));
+  // Probes for Docker, the reverse proxy and orchestrators. They must answer
+  // without an owner token, so they sit before the owner middleware below.
+  // Liveness reveals nothing. Readiness reports only the NAMES of missing setup
+  // items, never values or the full setup object.
+  app.get('/api/health', (c) => c.json({ ok: true }));
+  app.get('/api/ready', async (c) => {
+    if (!platform) return c.json({ ok: false, error: 'Not configured.' }, 503);
+    try {
+      await platform.ping();
+    } catch {
+      return c.json({ ok: false, error: 'Database is not reachable.' }, 503);
+    }
+    const missing = platform.setup().missing;
+    if (missing.length)
+      return c.json(
+        { ok: false, error: `Setup required: ${missing.join(', ')}.` },
+        503,
+      );
+    return c.json({ ok: true });
+  });
   app.use('/api/*', async (c, next) => {
     c.header('Cache-Control', 'no-store');
     c.header('X-Content-Type-Options', 'nosniff');
@@ -70,6 +116,17 @@ export function createApp({
     if (c.req.header('sec-fetch-site') === 'cross-site')
       return c.json({ error: 'Cross-site requests are not allowed.' }, 403);
     if (ownerToken) {
+      // Only FAILED attempts are charged, so a legitimate operator is never
+      // throttled by their own working session. A blocked client is refused
+      // before the comparison, which also stops a guessing loop early.
+      const key = clientKey(c.req.raw.headers);
+      if (authFailures.blocked(key)) {
+        // Already over the allowance: consuming one more attempt is harmless and
+        // yields a real Retry-After instead of a hint that invites instant retry.
+        const decision = authFailures.check(key);
+        c.header('Retry-After', String(decision.retryAfterSeconds));
+        return c.json({ error: 'Too many attempts. Wait a moment.' }, 429);
+      }
       const expected = Buffer.from(ownerToken);
       const supplied = Buffer.from(
         c.req.header('authorization')?.replace(/^Bearer /, '') ?? '',
@@ -77,11 +134,13 @@ export function createApp({
       if (
         expected.length !== supplied.length ||
         !timingSafeEqual(expected, supplied)
-      )
+      ) {
+        authFailures.check(key);
         return c.json(
-          { error: 'Enter your owner access token to unlock OpenDots.' },
+          { error: 'Enter your owner access token to unlock NexBot.' },
           401,
         );
+      }
     }
     if (
       !['GET', 'HEAD'].includes(c.req.method) &&
@@ -90,6 +149,11 @@ export function createApp({
       return c.json({ error: 'Use application/json.' }, 415);
     await next();
   });
+  if (platform && platform.modelConfig)
+    app.route(
+      '/api',
+      modelRoutes(platform.modelConfig, fetch, platform.config.extraHeaders),
+    );
   if (platform) app.route('/api', computerRoutes(platform.computers));
   if (platform)
     app.route(

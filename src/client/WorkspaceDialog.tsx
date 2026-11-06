@@ -1,3 +1,4 @@
+import { ModelSettings } from './ModelSettings';
 import { useEffect, useRef, useState } from 'react';
 import { X } from 'lucide-react';
 import type { Dot, Memory, State, WorkspaceState } from '../shared/types';
@@ -133,7 +134,7 @@ export function WorkspaceDialog({
         >
           <X size={18} />
         </button>
-        <span className="eyebrow">OPENDOTS TEMPLATE</span>
+        <span className="eyebrow">NEXBOT TEMPLATE</span>
         <h2 id="dialog-title">{title}</h2>
         <form
           onSubmit={async (e) => {
@@ -351,9 +352,9 @@ export function WorkspaceDialog({
           )}
           {dialog.type === 'dot' && (
             <fieldset className="space-access-fields">
-              <legend>Automatic Learning</legend>
+              <legend>Local skills</legend>
               <label className="field-label" htmlFor="learning-container">
-                Learning container ID
+                Skill set ID (optional)
               </label>
               <input
                 id="learning-container"
@@ -368,10 +369,10 @@ export function WorkspaceDialog({
                 }}
               />
               <p className="muted" id="learning-help">
-                Create this container in your Intelligence project first. New
-                conversations will contribute evidence to it. Leave blank to
-                keep new conversations out of Learning. Existing conversations
-                retain their original assignment.
+                Skills live in this workspace’s local database, keyed by Dot,
+                and are never sent to a hosted service. Leave blank to keep this
+                Dot out of skill delivery. This panel only controls delivery;
+                there is no skill editor here yet.
               </p>
               <label className="permission-row">
                 <input
@@ -381,22 +382,13 @@ export function WorkspaceDialog({
                   onChange={(event) => setSkillDelivery(event.target.checked)}
                 />
                 <span>
-                  <strong>Use published skills</strong>
+                  <strong>Deliver local skills</strong>
                   <small>
-                    Load reviewed skills from each conversation’s assigned
-                    container. Enable delivery in Intelligence too. Turning this
-                    off stops skill loading; it does not stop evidence
-                    collection.
+                    Expose this Dot’s enabled local skills at the start of each
+                    turn. Turning this off stops skill loading immediately.
                   </small>
                 </span>
               </label>
-              <a
-                href="https://docs.copilotkit.ai/learning"
-                target="_blank"
-                rel="noreferrer"
-              >
-                Set up Learning and review skills ↗
-              </a>
             </fieldset>
           )}
           {dialog.type === 'dot' && dialog.dot && (
@@ -454,18 +446,10 @@ export function WorkspaceDialog({
           {dialog.type === 'settings' && (
             <div className="config-note">
               <strong>Service setup</strong>
+              <ModelSettings />
               <p>
                 {workspace.setup.missing.length ? (
-                  <>
-                    Add{' '}
-                    {workspace.setup.missing.map((name, index) => (
-                      <span key={name}>
-                        {index > 0 && ', '}
-                        <code>{name}</code>
-                      </span>
-                    ))}{' '}
-                    to the server environment, then restart.
-                  </>
+                  <>Some server setup is still missing.</>
                 ) : (
                   'Text configuration is present. A successful conversation confirms connectivity.'
                 )}

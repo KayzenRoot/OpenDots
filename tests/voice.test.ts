@@ -88,7 +88,7 @@ it('binds voice history and compute to the existing thread, deduplicates tools a
     'thread',
     expect.stringContaining('Record a short call receipt'),
     expect.any(AbortSignal),
-    { opendotsSource: 'voice_receipt' },
+    { nexbotSource: 'voice_receipt' },
   );
   await expect(f.voice.compute(call.id, 'late', 'Research')).rejects.toThrow(
     'ended',
@@ -181,7 +181,7 @@ it('defers paused transcript synchronization and resumes it once without a dupli
     'Speech saved while paused',
   );
   expect(f.workspace.call(call.id).error).toContain(
-    'pending Intelligence sync',
+    'pending conversation sync',
   );
   f.store.updateSettings({ paused: false });
   await f.voice.resumePending();

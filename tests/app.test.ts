@@ -267,3 +267,55 @@ it('rejects DNS-rebinding Host even with a matching hostile Origin', async () =>
   });
   expect(response.status).toBe(403);
 });
+
+describe('rate limiting', () => {
+  it('stops a token-guessing loop instead of answering 401 forever', async () => {
+    const { app } = fixture('private-token');
+    const attempt = () =>
+      app.request('/api/state', {
+        headers: { authorization: 'Bearer wrong-token' },
+      });
+
+    // The allowance is 40 failures per minute; a human never reaches it.
+    for (let i = 0; i < 40; i++) expect((await attempt()).status).toBe(401);
+    const limited = await attempt();
+    expect(limited.status).toBe(429);
+    expect(Number(limited.headers.get('retry-after'))).toBeGreaterThanOrEqual(
+      1,
+    );
+  });
+
+  it('does not charge successful requests against the failure allowance', async () => {
+    const { app } = fixture('private-token');
+    const good = { headers: { authorization: 'Bearer private-token' } };
+    for (let i = 0; i < 60; i++)
+      expect((await app.request('/api/state', good)).status).toBe(200);
+  });
+
+  it('caps the public Slack webhook, which needs no owner token', async () => {
+    const { app } = fixture('private-token');
+    let sawLimit = false;
+    for (let i = 0; i < 130; i++) {
+      const res = await app.request('/api/slack/events', {
+        method: 'POST',
+        headers: {
+          'content-type': 'application/json',
+          'x-forwarded-for': '203.0.113.9',
+          // A valid token, so this exercises the WEBHOOK limiter rather than the
+          // token-guessing one: with no platform mounted there is no Slack route,
+          // and the request would otherwise fall through to the auth middleware.
+          authorization: 'Bearer private-token',
+        },
+        body: '{}',
+      });
+      if (res.status === 429) {
+        sawLimit = true;
+        expect(Number(res.headers.get('retry-after'))).toBeGreaterThanOrEqual(
+          1,
+        );
+        break;
+      }
+    }
+    expect(sawLimit).toBe(true);
+  });
+});

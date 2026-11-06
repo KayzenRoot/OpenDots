@@ -1,0 +1,199 @@
+# Checkpoint
+
+Status snapshot for the decoupled fork. Date: **2026-11-05**.
+
+## 1. Identity
+
+| Item                   | Value                                                                                                                          |
+| ---------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
+| Upstream               | `CopilotKit/OpenDots` (MIT, default branch `main`)                                                                             |
+| Upstream HEAD recorded | `d4214aff10f066911f3253cb3cb870764cd51a9f`                                                                                     |
+| Destination fork       | `https://github.com/KayzenRoot/nexbot`                                                                                         |
+| Local working tree     | `D:\Projects\opendots-clone\work\fork` (directory name unchanged; only the brand was renamed)                                  |
+| `origin` remote        | `https://github.com/KayzenRoot/nexbot.git`                                                                                     |
+| License                | Retained upstream MIT (`LICENSE`, Copyright (c) Atai Barkai)                                                                   |
+| Stack                  | Single npm package; TypeScript, ESM, Node >= 24; React 19 + Vite client; Hono on `@hono/node-server`; SQLite via `node:sqlite` |
+
+Repository facts at this checkpoint, measured from the tree:
+
+- Tracked files: **207**.
+- Commits: **127 across all refs** (73 reachable from `HEAD`). The recorded
+  baseline figure of 127 counts all refs including upstream history; `HEAD`
+  alone is 73.
+- Test files: **56** (Vitest) in `tests/`.
+- LOC: baseline record states ~11.5k in `src/`; measured at this checkpoint is
+  **13,639** lines across `src/**/*.ts{,x}` (client 6,870; server 5,906; shared
+  343; browser 275; build 245). The difference is a measurement-scope detail,
+  not a code change; the measured figure is what the tree contains now.
+
+## 2. Baseline results (WORK-000, recorded)
+
+Host: Windows, Node 26.4.0, npm 11.17.0.
+
+| Command             | Result               | Evidence                 |
+| ------------------- | -------------------- | ------------------------ |
+| `npm run typecheck` | PASS (clean)         | `baseline-typecheck.log` |
+| `npm run lint`      | PASS (clean)         | `baseline-lint.log`      |
+| `npm test`          | 348/351 pass; 3 fail | see below                |
+| `npm run build`     | PASS                 | —                        |
+
+3 failures, all `tests/telemetry.test.ts`, each `Test timed out in 5000ms`
+(~5.0s). Cause: subprocess `execFile('node', ['--import','tsx', ...])` takes
+4.0–5.0s on this host vs Vitest's 5000ms `testTimeout`; siblings pass at
+4.0–4.5s. Pre-existing host timing flake; passes on Linux CI. Not a logic
+defect. See [TEST-PLAN.md](./TEST-PLAN.md) §3.
+
+CI (`.github/workflows/ci.yml`) runs knip (report-only), knip production
+(report-only), check-format, lint, typecheck, test, build on Node 24. Not run in
+this checkpoint (WORK-009 will record CI evidence).
+
+## 3. Current phase
+
+**Phase: planning / decoupling not yet implemented.**
+
+The documentation set (WORK-001) and the baseline (WORK-000) are the only
+completed pieces. All implementation work orders (WORK-003 onward) are PLANNED
+or IN PROGRESS as noted below. This checkpoint deliberately marks implementation
+items as not done: no decoupling code has been written or verified in this
+repository at this time.
+
+## 4. Work order status
+
+| Work order | Objective                              | Status                                                |
+| ---------- | -------------------------------------- | ----------------------------------------------------- |
+| WORK-000   | Baseline (typecheck/lint/test/build)   | **DONE**                                              |
+| WORK-001   | Documentation set in `docs/fork/`      | **IN PROGRESS** (authored; must track implementation) |
+| WORK-002   | Issue/PR migration                     | PLANNED                                               |
+| WORK-003   | Postgres conversation store + runner   | PLANNED                                               |
+| WORK-004   | SSE runtime wiring + telemetry removal | PLANNED                                               |
+| WORK-005   | Self-hosted Slack                      | PLANNED                                               |
+| WORK-006   | Local learning/skills store            | PLANNED                                               |
+| WORK-007   | LLM provider configuration             | PLANNED                                               |
+| WORK-008   | VPS deployment                         | PLANNED                                               |
+| WORK-009   | Tests + evidence                       | PLANNED                                               |
+| WORK-010   | Security review + audit                | PLANNED                                               |
+
+No implementation work order is claimed DONE. Where this document set describes
+new modules (`src/server/pg.ts`, `conversation-store.ts`, `agent-runner.ts`,
+`learning-store.ts`) or a rewritten `src/server/slack-channel.ts`, those are
+**designed targets**, not existing code.
+
+### What exists today (DONE, upstream-retained)
+
+- `npm run typecheck`, `npm run lint`, `npm run build` all pass.
+- `npm test` passes except the 3 predocumented telemetry timeouts.
+- Auth (owner token, `APP_ORIGIN`, `sec-fetch-site`), runtime-scope validation,
+  page/document editing, approval workflows, MCP and Composio integrations,
+  computers, browser isolation, voice, scheduling, and shutdown handling are all
+  present and tested (see [FEATURE-PARITY.md](./FEATURE-PARITY.md)).
+- Browser service `/health` exists; the app server has no health endpoint yet.
+
+### What does not exist yet (must be built)
+
+- PostgreSQL store, runner, migrations (`pg.ts`, `conversation-store.ts`,
+  `agent-runner.ts`).
+- SSE-mode runtime wiring; `HttpAgent` server turns; telemetry removal.
+- Self-hosted Slack receiver; local skills store.
+- App health/readiness endpoints; Postgres compose service; validated
+  backup/restore.
+- Docker images built and a compose smoke pass.
+
+## 5. Blockers and risks
+
+| #   | Blocker / risk                                                  | Impact                                            | Mitigation                                                                |
+| --- | --------------------------------------------------------------- | ------------------------------------------------- | ------------------------------------------------------------------------- |
+| B1  | Implementation work orders are not started                      | The fork does not yet satisfy "no CopilotKit key" | Sequence WORK-003 → 004 → 005/006 → 008 → 009 → 010                       |
+| B2  | Windows-host telemetry flake                                    | Local `npm test` not fully green                  | Do not mask globally; confirm on Linux CI; document per `TEST-PLAN.md` §3 |
+| B3  | No Postgres service in `compose.yml` yet                        | Cannot validate deployment/backups                | WORK-008 adds it before any deployment claim                              |
+| B4  | Backups span two stores with no shared transaction              | Restore can produce dangling references           | Paired backup/restore + reconciliation (DEPLOYMENT.md §8)                 |
+| B5  | New attack surface (Slack webhook, Postgres, health) unreviewed | Security gate unmet                               | WORK-010 before release; blocking per DEFINITION-OF-DONE §11              |
+| B6  | Upstream drift could reintroduce hosted surfaces                | Seam table could go stale                         | Re-audit the seam table on each upstream merge                            |
+
+## 6. Next actions
+
+1. Start WORK-003 (Postgres store + runner) with the schema in
+   [DATA-MODEL.md](./DATA-MODEL.md) and the tests in
+   [TEST-PLAN.md](./TEST-PLAN.md) §5.1–5.2.
+2. Then WORK-004 (SSE wiring + telemetry removal).
+3. Then WORK-005 and WORK-006 (Slack, learning) in parallel.
+4. Then WORK-007, WORK-008, WORK-009, WORK-010.
+5. Update this checkpoint and
+   [DEFINITION-OF-DONE.md](./DEFINITION-OF-DONE.md) as each item flips, with an
+   evidence artifact for every DONE.
+
+## 7. Verified status (2026-11-05, supersedes §5)
+
+Branch `fork/decouple-and-harden` @ `6f310a2`, pull request
+[#103](https://github.com/KayzenRoot/nexbot/pull/103) (80 files, +7561/−1482).
+
+| Work order                       | Status                                | Evidence                                                                                                                                 |
+| -------------------------------- | ------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
+| WORK-003 Postgres store + runner | DONE                                  | `conversation-store.test.ts`, `agent-runner.test.ts` against PostgreSQL 17                                                               |
+| WORK-004 SSE runtime + telemetry | DONE                                  | no `CopilotKitIntelligence`/`IntelligenceAgent`/`copilotkit.ai` in `src/`; browser probe recorded zero `copilotkit.ai` requests          |
+| WORK-005 self-hosted Slack       | DONE, **verified live**               | signed event → agent → "SLACK OK" in a real channel; unsigned request → 401                                                              |
+| WORK-006 local skills            | PARTIAL                               | `learning-store.test.ts` passes; **no editor UI or HTTP route**                                                                          |
+| WORK-007 providers               | DONE for chat                         | live turn via OpenCode Go `deepseek-v4.1-flash`; **voice still pinned to `api.openai.com`**                                              |
+| WORK-008 deployment              | DONE (host); **VPS unproven**         | image built, stack healthy, data survived container restart, and a full backup/restore round-trip destroyed and recovered a conversation |
+| WORK-009 evidence                | PARTIAL                               | logs in the operator's `evidence/` directory, not committed                                                                              |
+| WORK-010 security review         | DONE, verdict **CORRECTION REQUIRED** | [SECURITY-AUDIT.md](./SECURITY-AUDIT.md); production audit 1 critical → 0                                                                |
+
+Gates observed at that commit: `typecheck`, `lint`, `check-format`, `build`
+clean; `npm test` 388 passed / 60 files with `NEXBOT_TEST_DATABASE_URL`, and
+Postgres suites self-skip without it.
+
+Live proof: one AG-UI turn returned `RUN_STARTED → TEXT_MESSAGE_* →
+RUN_FINISHED` with the expected assistant text, both on the host and inside the
+`nexbot-app` container; the thread and its messages were re-read from
+PostgreSQL after a server restart and after a container restart.
+
+### Backup and restore, round-trip (2026-11-05)
+
+`deployment/backup.sh` produced a quiesced pair (`nexbot.pgdump` custom
+format, `nexbot.sqlite`, `MANIFEST.txt`). A conversation was then deleted
+directly from PostgreSQL (3 → 2 conversations, 3 → 2 runs), and
+`deployment/restore.sh` was run: it stopped the app, dropped and recreated the
+database, restored both stores, restarted the app and reported readiness. The
+deleted conversation and its runs were back (3/3), and a live agent turn
+afterwards returned the expected text.
+
+That run found two real defects in `restore.sh`, both fixed in `70eab56`: the
+helper could not unlink the SQLite file (all capabilities dropped) and then
+could not `chmod` it after `chown`. Both were only observable by executing the
+script, which is why the round-trip is part of the gate.
+
+### Dependency remediation (2026-11-05)
+
+Production tree: 1 critical → **0**, 40 → 38 total. `dompurify` pinned to
+3.4.17 (critical sanitiser bypass), `zod` to 4.6.7 (memory-exhaustion DoS, root
+of most transitive highs), `@modelcontextprotocol/sdk` to 1.32.2. `npm audit
+fix` was deliberately reverted because it also moved `@copilotkit/*` from
+1.75.0 to 1.84.1, which changes AG-UI message types and breaks typecheck; that
+upgrade needs its own tested change. Remaining highs are transitive and
+untouched paths — see [SECURITY-AUDIT.md](./SECURITY-AUDIT.md) F5–F8.
+
+### Slack, verified live (2026-11-05)
+
+The self-hosted Slack integration was exercised against a real workspace
+(Nexlabs, `T0CF2380YQM`, channel `#geral`). App `NexBot` (`A0CETPAP5B9`) was
+created from `deployment/slack-app-manifest.json`, installed, and added to the
+channel. `setup().slack` reported `online`.
+
+A correctly signed `app_mention` event was delivered to
+`POST /api/slack/events` through a public tunnel and returned `200 {"ok":true}`;
+the agent then ran and posted **"SLACK OK"** back to the channel. This covers
+signature verification, the team/user allowlist, the agent turn and the reply.
+An unsigned request to the same route returned `401`.
+
+Not covered by that run: Slack's own retry/redelivery behaviour, and the
+production Request URL (the tunnel is ephemeral; the VPS must use its own
+domain).
+
+### Remaining blockers
+
+- **B7** _(resolved — see above)_ Slack was verified end to end against a live
+  workspace.
+- **B8** Voice Realtime is OpenAI-only (`src/server/voice.ts`).
+- **B9** The bundled CopilotKit web-inspector still carries its telemetry URL
+  constant. No request to it was observed, but it is not provably dead code.
+- **B10** Docker's `COMPOSE_PROJECT_NAME` was inherited as `hive-v102`; builds
+  must pass `-p nexbot` to avoid joining an unrelated project.

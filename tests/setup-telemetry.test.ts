@@ -14,15 +14,15 @@ import {
   answerObserver,
 } from '../src/server/setup-telemetry.js';
 
-it('persists bounded offline events with stable IDs and CLI identity across restart', async () => {
-  const dir = mkdtempSync(join(tmpdir(), 'opendots-telemetry-'));
+it('persists bounded offline events with stable IDs and the installation identity across restart', async () => {
+  const dir = mkdtempSync(join(tmpdir(), 'nexbot-telemetry-'));
   const path = join(dir, 'store.sqlite');
   let store = new Store(path);
   const offline = vi.fn(async () => {
     throw new Error('secret transport error');
   });
   const diagnostics = vi.fn();
-  const env = { CPK_TELEMETRY_ID: 'cli-identity' };
+  const env = {};
   let telemetry = new SetupTelemetry(store, env, offline, diagnostics);
   for (let i = 0; i < 260; i++)
     telemetry.capture({ kind: 'step_viewed', step: 'ready' });
@@ -44,15 +44,15 @@ it('persists bounded offline events with stable IDs and CLI identity across rest
     diagnostics,
   );
   await telemetry.flush();
-  expect(requests[0].identity).toBe('cli-identity');
+  expect(requests[0].identity).toBe(installationId);
   expect(requests[0].body).toMatchObject({ ts: state.queue[1].occurredAt });
   expect(state.queue[1].occurredAt).toBeLessThan(100_000_000_000);
   expect(requests[0].body).toMatchObject({
     event_id: id,
     event: 'oss.runtime.setup_step_viewed',
     global_properties: {
-      accessibility_title: 'OpenDots',
-      opendots_distribution: 'web',
+      accessibility_title: 'NexBot',
+      nexbot_distribution: 'web',
       installation_id: installationId,
     },
   });
@@ -62,24 +62,32 @@ it('persists bounded offline events with stable IDs and CLI identity across rest
   rmSync(dir, { recursive: true });
 });
 
-it.each(['DO_NOT_TRACK', 'COPILOTKIT_TELEMETRY_DISABLED'])(
-  'purges pending telemetry for both true and 1 in %s',
-  async (key) => {
-    for (const value of ['true', '1']) {
-      const store = new Store(':memory:');
-      const env: Record<string, string> = {};
-      const send = vi.fn(async () => {});
-      const telemetry = new SetupTelemetry(store, env, send);
-      telemetry.capture({ kind: 'step_viewed', step: 'setup_required' });
-      env[key] = value;
-      await telemetry.flush();
-      telemetry.capture({ kind: 'activated' });
-      expect(store.setupTelemetryState()).toBeUndefined();
-      expect(send).not.toHaveBeenCalled();
-      store.close();
-    }
-  },
-);
+it('purges pending telemetry for both true and 1 in DO_NOT_TRACK', async () => {
+  const key = 'DO_NOT_TRACK';
+  for (const value of ['true', '1']) {
+    const store = new Store(':memory:');
+    const env: Record<string, string> = {};
+    const send = vi.fn(async () => {});
+    const telemetry = new SetupTelemetry(store, env, send);
+    telemetry.capture({ kind: 'step_viewed', step: 'setup_required' });
+    env[key] = value;
+    await telemetry.flush();
+    telemetry.capture({ kind: 'activated' });
+    expect(store.setupTelemetryState()).toBeUndefined();
+    expect(send).not.toHaveBeenCalled();
+    store.close();
+  }
+});
+
+it('keeps the queue local-only and never calls a sink when no endpoint is configured', async () => {
+  const store = new Store(':memory:');
+  const telemetry = new SetupTelemetry(store, {});
+  telemetry.capture({ kind: 'step_viewed', step: 'setup_required' });
+  await telemetry.flush();
+  const state = JSON.parse(store.setupTelemetryState()!);
+  expect(state.queue).toHaveLength(1);
+  store.close();
+});
 
 it('reuses fallback identity and recovers abandonment without treating ready as activated', () => {
   const store = new Store(':memory:');
@@ -234,25 +242,17 @@ it('does not activate from user text, partial answers or tool-only success', () 
   expect(capture).not.toHaveBeenCalled();
 });
 
-it('uses installation fallback after a CLI identity is removed, and never loses CLI precedence', () => {
+it('uses a single stable installation identity across restarts and ignores any CLI identity', () => {
   const store = new Store(':memory:');
-  const cli = new SetupTelemetry(
+  const first = new SetupTelemetry(store, {}, async () => {});
+  expect(first.identity).toBe(first.metadata.installation_id);
+  // A leftover CPK_TELEMETRY_ID no longer overrides the local identity.
+  const second = new SetupTelemetry(
     store,
     { CPK_TELEMETRY_ID: 'cli-one' },
     async () => {},
   );
-  expect(cli.identity).toBe('cli-one');
-  const fallback = new SetupTelemetry(store, {}, async () => {});
-  expect(fallback.identity).toBe(cli.metadata.installation_id);
-  const replacement = new SetupTelemetry(
-    store,
-    { CPK_TELEMETRY_ID: 'cli-two' },
-    async () => {},
-  );
-  expect(replacement.identity).toBe('cli-two');
-  expect(replacement.metadata.installation_id).toBe(
-    cli.metadata.installation_id,
-  );
+  expect(second.identity).toBe(first.metadata.installation_id);
   store.close();
 });
 

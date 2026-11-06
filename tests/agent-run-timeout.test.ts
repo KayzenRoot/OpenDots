@@ -20,7 +20,7 @@ vi.mock('../src/server/composio.js', () => ({
 
 const resources: Array<{ close(): void }> = [];
 function sharedStores() {
-  const dir = mkdtempSync(join(tmpdir(), 'opendots-timeout-'));
+  const dir = mkdtempSync(join(tmpdir(), 'nexbot-timeout-'));
   const path = join(dir, 'test.sqlite');
   const first = new Store(path);
   const second = new Store(path);
@@ -63,7 +63,6 @@ it('finishes an interactive turn when Composio startup stalls', async () => {
     store,
     workspace,
     {
-      intelligenceKey: 'fixture',
       apiKey: 'fixture',
       model: 'custom-model',
       composioApiKey: 'fixture',
@@ -112,7 +111,6 @@ it('does not start the inner agent after Composio startup is cancelled', async (
     store,
     workspace,
     {
-      intelligenceKey: 'fixture',
       apiKey: 'fixture',
       model: 'custom-model',
       composioApiKey: 'fixture',

@@ -1,11 +1,10 @@
 import { expect, it } from 'vitest';
 import {
-  INTELLIGENCE_KEY_MISSING_LABEL,
   setupStatus,
   type PlatformConfig,
 } from '../src/server/platform-config.js';
 const config: PlatformConfig = {
-  intelligenceKey: 'fixture',
+  databaseUrl: 'postgres://example.test/nexbot',
   apiKey: 'fixture',
   model: 'fixture',
   baseUrl: 'https://example.com',
@@ -30,16 +29,21 @@ it('never claims Slack online without a complete managed channel declaration', (
     ).slack,
   ).toBe('online');
 });
-it('requires Intelligence and model setup and disables voice when either is absent', () => {
+it('requires only model setup and reports conversation storage instead of an Intelligence key', () => {
+  expect(setupStatus(config).missing).toEqual([]);
+  expect(setupStatus({ ...config, databaseUrl: undefined })).toMatchObject({
+    intelligence: false,
+    missing: [],
+  });
   expect(
     setupStatus({
       ...config,
-      intelligenceKey: '',
+      apiKey: undefined,
       voiceKey: 'fixture',
       voiceModel: 'fixture',
     }),
   ).toMatchObject({
-    missing: [INTELLIGENCE_KEY_MISSING_LABEL],
+    missing: ['OPENAI_API_KEY'],
     voice: false,
   });
 });

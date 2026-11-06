@@ -14,8 +14,8 @@ export function isInternalVoiceReceipt(message: Message): boolean {
     (message.id.startsWith(voiceReceiptMessagePrefix) ||
       (!!metadata &&
         typeof metadata === 'object' &&
-        'opendotsSource' in metadata &&
-        metadata.opendotsSource === 'voice_receipt'))
+        'nexbotSource' in metadata &&
+        metadata.nexbotSource === 'voice_receipt'))
   );
 }
 function Receipt({ call }: { call: CallReceipt }) {

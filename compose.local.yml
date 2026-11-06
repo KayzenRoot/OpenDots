@@ -1,0 +1,28 @@
+# Local test overlay. Use it together with the base stack:
+#
+#   docker compose -p nexbot --env-file ../../compose.env \
+#     -f compose.yml -f compose.local.yml up -d
+#
+# It adds a reverse proxy on 127.0.0.1:8080 so there is one stable URL to test
+# against, mirroring how the VPS deployment is reached through Caddy. Nothing
+# here is exposed beyond loopback.
+services:
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    ports:
+      - 127.0.0.1:8080:8080
+    volumes:
+      - ./deployment/Caddyfile.local:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+    depends_on:
+      - app
+    networks:
+      - app-egress
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+
+volumes:
+  caddy-data:

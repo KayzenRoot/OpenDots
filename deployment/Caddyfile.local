@@ -1,0 +1,26 @@
+# Local test proxy: one stable URL in front of the app.
+#
+# No TLS on purpose. This is for testing on the operator's own machine, so it
+# listens on loopback only and skips certificate issuance entirely. For a real
+# deployment use deployment/Caddyfile, which terminates HTTPS for a domain.
+
+{
+	auto_https off
+	admin off
+}
+
+:8080 {
+	encode gzip
+
+	# flush_interval -1 disables response buffering so AG-UI server-sent events
+	# reach the browser as they are produced instead of in batches.
+	reverse_proxy app:4310 {
+		flush_interval -1
+	}
+
+	header {
+		X-Content-Type-Options nosniff
+		Referrer-Policy no-referrer
+		-Server
+	}
+}

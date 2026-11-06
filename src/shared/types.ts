@@ -90,6 +90,10 @@ export interface Dot {
   composioSessionId?: string | null;
   composioPolicyHash?: string | null;
   createdAt: number;
+  /**
+   * Legacy hosted-Intelligence container id, retained as a display label. Local
+   * skills are keyed by Dot id; delivery is gated by `skillDeliveryEnabled`.
+   */
   learningContainerId?: string | null;
   skillDeliveryEnabled?: boolean;
 }
@@ -99,7 +103,10 @@ export interface Conversation {
   ownerId: string;
   title: string;
   createdAt: number;
-  /** Frozen at creation; null means this conversation does not participate. */
+  /**
+   * Legacy value frozen at creation for continuity; no longer an identifier a
+   * hosted service is asked about, and no longer consulted for delivery.
+   */
   learningContainerId?: string | null;
 }
 export interface CallReceipt {

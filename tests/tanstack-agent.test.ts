@@ -1,10 +1,21 @@
-import { afterEach, expect, it, vi } from 'vitest';
+import {
+  afterAll,
+  afterEach,
+  beforeAll,
+  describe,
+  expect,
+  it,
+  vi,
+} from 'vitest';
+import { Pool } from 'pg';
 import { EventType, type RunAgentInput } from '@ag-ui/core';
 import { lastValueFrom, toArray } from 'rxjs';
 import { DotAgent } from '../src/server/dot-agent.js';
 import { completion } from './fixtures/model-stream.js';
 import { Store } from '../src/server/store.js';
 import { WorkspaceStore } from '../src/server/workspace.js';
+import { LearningStore } from '../src/server/learning-store.js';
+import { createPool, migrate } from '../src/server/pg.js';
 import { pageReviewTool } from '../src/shared/page-review.js';
 import { connectionActionTool } from '../src/shared/connection-types.js';
 
@@ -24,7 +35,6 @@ function fixture() {
     store,
     workspace,
     {
-      intelligenceKey: 'fixture',
       apiKey: 'fixture',
       model: 'custom-model',
       baseUrl: 'https://unused.invalid/v1',
@@ -357,4 +367,116 @@ it('reports a turn that hits the time limit as a RUN_ERROR instead of ending sil
   } finally {
     vi.useRealTimers();
   }
+});
+
+const databaseUrl = process.env.NEXBOT_TEST_DATABASE_URL;
+const describePostgres = databaseUrl ? describe : describe.skip;
+
+describePostgres('local skill tools (PostgreSQL)', () => {
+  let pool: Pool;
+  let learning: LearningStore;
+  // The Dot id is a workspace-generated UUID, so this file deletes only its own
+  // skill rows instead of truncating the table shared with other files.
+  const seededDots = new Set<string>();
+  beforeAll(async () => {
+    pool = createPool(databaseUrl!);
+    await migrate(pool);
+  });
+  afterAll(async () => {
+    await pool.end();
+  });
+  afterEach(async () => {
+    if (seededDots.size)
+      await pool.query('DELETE FROM skills WHERE dot_id = ANY($1)', [
+        [...seededDots],
+      ]);
+    seededDots.clear();
+  });
+
+  it('executes copilotkit_load_skill against local skill content', async () => {
+    learning = new LearningStore(pool);
+    const store = new Store(':memory:');
+    const workspace = new WorkspaceStore(':memory:', 'owner');
+    databases.push(store, workspace);
+    const dot = workspace.dots()[0];
+    workspace.updateDot(dot.id, {
+      ...dot,
+      learningContainerId: 'research',
+      skillDeliveryEnabled: true,
+    });
+    workspace.bindThread('thread', dot.id, 'Skills');
+    seededDots.add(dot.id);
+    await learning.upsertSkill(dot.id, {
+      name: 'evidence-review',
+      body: '---\nname: evidence-review\ndescription: Review evidence.\n---\nCompare sources before making claims.',
+    });
+    const agent = new DotAgent(
+      store,
+      workspace,
+      {
+        apiKey: 'fixture',
+        model: 'custom-model',
+        baseUrl: 'https://unused.invalid/v1',
+        runtimeUrl: '',
+        voiceName: 'marin',
+        slackUsers: [],
+      },
+      dot.id,
+      false,
+      undefined,
+      learning,
+    );
+    const input: RunAgentInput = {
+      threadId: 'thread',
+      runId: 'run',
+      state: {},
+      context: [],
+      messages: [{ id: 'user', role: 'user', content: 'Review the evidence.' }],
+      tools: [],
+      forwardedProps: {},
+    };
+    const network = vi
+      .spyOn(globalThis, 'fetch')
+      .mockResolvedValueOnce(
+        completion(
+          {
+            role: 'assistant',
+            tool_calls: [
+              {
+                index: 0,
+                id: 'load-skill',
+                type: 'function',
+                function: {
+                  name: 'copilotkit_load_skill',
+                  arguments: JSON.stringify({ skill_name: 'evidence-review' }),
+                },
+              },
+            ],
+          },
+          'tool_calls',
+        ),
+      )
+      .mockResolvedValueOnce(
+        completion({ role: 'assistant', content: 'Skill loaded.' }),
+      );
+    const events = await lastValueFrom(agent.run(input).pipe(toArray()));
+    const continuation = JSON.parse(String(network.mock.calls[1][1]?.body));
+    expect(continuation.messages).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          role: 'tool',
+          tool_call_id: 'load-skill',
+          content: expect.stringContaining('Compare sources before making'),
+        }),
+      ]),
+    );
+    expect(events).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          type: EventType.TOOL_CALL_RESULT,
+          toolCallId: 'load-skill',
+        }),
+      ]),
+    );
+  });
 });

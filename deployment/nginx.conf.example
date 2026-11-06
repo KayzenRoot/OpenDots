@@ -1,0 +1,78 @@
+# NexBot reverse proxy (nginx) — alternative to deployment/Caddyfile.
+#
+# Prefer Caddy (deployment/Caddyfile) for automatic HTTPS. Use this only if you
+# already run nginx or cannot use Caddy.
+#
+# Certificates with certbot:
+#   sudo certbot --nginx -d dots.example.com
+# or, for the non-nginx plugin, point ssl_certificate at the generated files
+# (paths below) and reload:  sudo certbot renew --deploy-hook 'nginx -s reload'
+#
+# Replace dots.example.com everywhere, and choose the upstream:
+#   * host-run nginx (recommended):  proxy_pass http://127.0.0.1:4310;
+#   * nginx container on the app's Docker network: proxy_pass http://app:4310;
+# The app port must stay loopback-only; only nginx binds :80/:443.
+
+# HTTP: ACME challenge + redirect to HTTPS.
+server {
+    listen 80;
+    listen [::]:80;
+    server_name dots.example.com;
+
+    location /.well-known/acme-challenge/ {
+        root /var/www/certbot;
+    }
+
+    location / {
+        return 301 https://$host$request_uri;
+    }
+}
+
+server {
+    listen 443 ssl;
+    listen [::]:443 ssl;
+    http2 on;
+    server_name dots.example.com;
+
+    ssl_certificate     /etc/letsencrypt/live/dots.example.com/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/dots.example.com/privkey.pem;
+    ssl_protocols       TLSv1.2 TLSv1.3;
+    ssl_ciphers         HIGH:!aNULL:!MD5;
+    ssl_prefer_server_ciphers on;
+    ssl_session_cache   shared:SSL:10m;
+    ssl_session_timeout 1d;
+
+    add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
+    add_header X-Content-Type-Options "nosniff" always;
+    add_header Referrer-Policy "strict-origin-when-cross-origin" always;
+    add_header X-Frame-Options "DENY" always;
+    server_tokens off;
+
+    # The app has no per-IP rate limiting; add edge limits of your own if wanted
+    # (limit_req_zone must be declared in the http{} block).
+    client_max_body_size 2m;
+
+    location / {
+        proxy_pass http://127.0.0.1:4310;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header Connection "";
+
+        # Streaming chat turns use SSE; disable buffering/caching and allow
+        # long-lived responses.
+        proxy_buffering off;
+        proxy_cache off;
+        proxy_read_timeout 3600s;
+        proxy_send_timeout 3600s;
+    }
+
+    # --- Self-hosted Slack Events API webhook (OPTIONAL; NOT YET WIRED) --------
+    # location = /api/slack/events {
+    #     proxy_pass http://127.0.0.1:4310;
+    #     proxy_set_header Host $host;
+    #     proxy_set_header X-Forwarded-Proto $scheme;
+    # }
+}
