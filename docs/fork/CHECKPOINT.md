@@ -8,9 +8,9 @@ Status snapshot for the decoupled fork. Date: **2026-11-05**.
 | ---------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
 | Upstream               | `CopilotKit/OpenDots` (MIT, default branch `main`)                                                                             |
 | Upstream HEAD recorded | `d4214aff10f066911f3253cb3cb870764cd51a9f`                                                                                     |
-| Destination fork       | `https://github.com/KayzenRoot/OpenDots`                                                                                       |
+| Destination fork       | `https://github.com/KayzenRoot/nexbot`                                                                                         |
 | Local working tree     | `D:\Projects\opendots-clone\work\fork` (directory name unchanged; only the brand was renamed)                                  |
-| `origin` remote        | `https://github.com/KayzenRoot/OpenDots.git`                                                                                   |
+| `origin` remote        | `https://github.com/KayzenRoot/nexbot.git`                                                                                     |
 | License                | Retained upstream MIT (`LICENSE`, Copyright (c) Atai Barkai)                                                                   |
 | Stack                  | Single npm package; TypeScript, ESM, Node >= 24; React 19 + Vite client; Hono on `@hono/node-server`; SQLite via `node:sqlite` |
 
@@ -124,7 +124,7 @@ new modules (`src/server/pg.ts`, `conversation-store.ts`, `agent-runner.ts`,
 ## 7. Verified status (2026-11-05, supersedes §5)
 
 Branch `fork/decouple-and-harden` @ `6f310a2`, pull request
-[#103](https://github.com/KayzenRoot/OpenDots/pull/103) (80 files, +7561/−1482).
+[#103](https://github.com/KayzenRoot/nexbot/pull/103) (80 files, +7561/−1482).
 
 | Work order                       | Status                                | Evidence                                                                                                                                 |
 | -------------------------------- | ------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |

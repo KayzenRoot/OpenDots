@@ -15,7 +15,7 @@ Status values: Accepted, Superseded, Deprecated.
   needs to change the runtime's reliance on CopilotKit-hosted services while
   keeping the ability to pull upstream fixes. A clean-room rewrite would discard
   history and attribution and make future merges impractical.
-- **Decision:** Continue as a GitHub fork (`KayzenRoot/OpenDots`) of
+- **Decision:** Continue as a GitHub fork (`KayzenRoot/nexbot`) of
   `CopilotKit/OpenDots`, preserving upstream commit history and the upstream
   `LICENSE`. Upstream HEAD at fork time: `d4214aff10f066911f3253cb3cb870764cd51a9f`.
 - **Consequences:** Upstream commits can be merged; MIT attribution is

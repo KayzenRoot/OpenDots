@@ -8,7 +8,7 @@ Legend: `[x]` met, `[ ]` not yet met, `[~]` partially met.
 
 ## 1. Fork and provenance
 
-- [x] **Fork exists** at `https://github.com/KayzenRoot/OpenDots`.
+- [x] **Fork exists** at `https://github.com/KayzenRoot/nexbot`.
   - Verify: `git remote -v` shows `origin` as the KayzenRoot repository.
   - Status: DONE.
 - [x] **History preserved** from upstream (GitHub fork; upstream commits

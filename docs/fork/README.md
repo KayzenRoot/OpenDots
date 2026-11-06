@@ -2,7 +2,7 @@
 
 Canonical engineering documentation for the decoupled, self-hosted fork of
 CopilotKit/OpenDots maintained at
-`https://github.com/KayzenRoot/OpenDots`.
+`https://github.com/KayzenRoot/nexbot`.
 
 - Upstream: `CopilotKit/OpenDots` (MIT), default branch `main`,
   upstream HEAD `d4214aff10f066911f3253cb3cb870764cd51a9f`.

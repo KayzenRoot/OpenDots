@@ -18,7 +18,7 @@ CopilotKit Intelligence, Threads, and Channels."
 
 ## What this fork is
 
-This fork, `https://github.com/KayzenRoot/OpenDots`, is an **independent,
+This fork, `https://github.com/KayzenRoot/nexbot`, is an **independent,
 decoupled** continuation of upstream. It keeps the application and its
 open-protocol runtime, and it **removes the mandatory dependency on
 CopilotKit-hosted services and API keys**. After this fork's work is complete,
