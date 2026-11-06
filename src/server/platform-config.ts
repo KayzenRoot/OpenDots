@@ -1,4 +1,5 @@
 import type { WebConfig } from './parallel.js';
+import type { DotModelApi } from './model-api.js';
 import type { SetupStatus } from '../shared/types.js';
 
 export const DEFAULT_AGENT_RUN_TIMEOUT_MS = 90_000;
@@ -63,6 +64,8 @@ export interface PlatformConfig extends WebConfig {
   model?: string;
   apiKey?: string;
   baseUrl: string;
+  /** `DOT_MODEL_API`: Chat Completions, Responses, or `auto` by model name. */
+  dotModelApi?: DotModelApi;
   agentRunTimeoutMs?: number;
   computerSupervisorUrl?: string;
   computerSupervisorToken?: string;

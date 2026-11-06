@@ -478,6 +478,8 @@ export const ptBR: Record<keyof typeof en, string> = {
   'review.checkingNote': 'Verificando se este rascunho já foi salvo.',
   'review.noPageSaved': 'Nenhuma página foi salva.',
   'review.nothingSavedNote': 'Nada é salvo antes da sua aprovação.',
+  'review.updatesExistingPage':
+    'A aprovação atualiza a página existente neste Space.',
 
   // Result pane
   'result.brief': 'Resumo',

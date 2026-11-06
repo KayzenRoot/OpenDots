@@ -121,6 +121,75 @@ it('rejects a changed restored draft before sending a decision or another save',
   ).toHaveLength(0);
 });
 
+it('sends an existing page target with the approved revision', async () => {
+  const draft = {
+    title: 'Brief',
+    content: 'Evidence',
+    spaceId: 'space',
+    pageId: 'page-1',
+    expectedRevision: 4,
+  };
+  vi.mocked(api)
+    .mockResolvedValueOnce(null)
+    .mockResolvedValueOnce({
+      id: 'page-1',
+      ...draft,
+      reviewDraft: draft,
+    });
+  await decidePageReview('thread', 'call', draft, true);
+  expect(api).toHaveBeenLastCalledWith(
+    '/conversations/thread/reviewed-page',
+    'POST',
+    { ...draft, toolCallId: 'call' },
+  );
+});
+
+it('treats a different page target as a changed review', async () => {
+  const original = {
+    title: 'Brief',
+    content: 'Evidence',
+    spaceId: 'space',
+    pageId: 'page-1',
+    expectedRevision: 4,
+  };
+  vi.mocked(api).mockResolvedValue({
+    id: 'page-1',
+    ...original,
+    reviewDraft: original,
+  });
+  for (const changed of [
+    { ...original, pageId: 'page-2' },
+    { ...original, expectedRevision: 5 },
+  ]) {
+    await expect(
+      decidePageReview('thread', 'call', changed, true),
+    ).rejects.toThrow('different draft');
+  }
+  expect(
+    vi.mocked(api).mock.calls.filter((call) => call[1] === 'POST'),
+  ).toHaveLength(0);
+});
+
+it('tells the owner when approval updates an existing page', () => {
+  const html = renderToStaticMarkup(
+    <PageReviewCard
+      args={{
+        title: 'Brief',
+        content: 'Evidence',
+        spaceId: 'space',
+        pageId: 'page-1',
+        expectedRevision: 2,
+      }}
+      status="executing"
+      respond={async () => {}}
+      threadId="thread"
+      toolCallId="call"
+      onSaved={() => {}}
+    />,
+  );
+  expect(html).toContain('Approving updates the existing page');
+});
+
 it('hides decisions and unsaved claims until the persisted receipt is checked', () => {
   const html = renderToStaticMarkup(
     <PageReviewCard

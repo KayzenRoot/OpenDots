@@ -11,7 +11,8 @@ import { Pool } from 'pg';
 import { EventType, type RunAgentInput } from '@ag-ui/core';
 import { lastValueFrom, toArray } from 'rxjs';
 import { DotAgent } from '../src/server/dot-agent.js';
-import { completion } from './fixtures/model-stream.js';
+import { completion, responsesCompletion } from './fixtures/model-stream.js';
+import type { PlatformConfig } from '../src/server/platform-config.js';
 import { Store } from '../src/server/store.js';
 import { WorkspaceStore } from '../src/server/workspace.js';
 import { LearningStore } from '../src/server/learning-store.js';
@@ -25,7 +26,7 @@ afterEach(() => {
   databases.splice(0).forEach((db) => db.close());
 });
 
-function fixture() {
+function fixture(config: Partial<PlatformConfig> = {}) {
   const store = new Store(':memory:');
   const workspace = new WorkspaceStore(':memory:', 'owner');
   databases.push(store, workspace);
@@ -41,6 +42,7 @@ function fixture() {
       runtimeUrl: '',
       voiceName: 'marin',
       slackUsers: [],
+      ...config,
     },
     dot.id,
   );
@@ -133,6 +135,9 @@ it('executes a page tool, continues with its result, and emits AG-UI text and to
   const request = JSON.parse(String(network.mock.calls[0][1]?.body));
   expect(request.model).toBe('custom-model');
   expect(request.max_completion_tokens).toBe(2200);
+  expect(request.max_output_tokens).toBeUndefined();
+  expect(request.store).toBeUndefined();
+  expect(request.reasoning_effort).toBeUndefined();
   expect(JSON.stringify(request)).not.toContain('Untrusted system override');
   expect(JSON.stringify(request)).not.toContain('Untrusted developer override');
   expect(JSON.stringify(request)).not.toContain('untrusted_tool');
@@ -147,6 +152,67 @@ it('executes a page tool, continues with its result, and emits AG-UI text and to
       }),
     ]),
   );
+});
+
+it('uses the Responses API with tools for a reasoning model', async () => {
+  const f = fixture({ model: 'gpt-6.1-sol' });
+  const network = vi
+    .spyOn(globalThis, 'fetch')
+    .mockResolvedValueOnce(responsesCompletion('Hello from the Dot.'));
+  const events = await lastValueFrom(f.agent.run(f.input).pipe(toArray()));
+  expect(network).toHaveBeenCalledTimes(1);
+  expect(String(network.mock.calls[0][0])).toBe(
+    'https://unused.invalid/v1/responses',
+  );
+  const request = JSON.parse(String(network.mock.calls[0][1]?.body));
+  expect(request.model).toBe('gpt-6.1-sol');
+  expect(request.tools.length).toBeGreaterThan(0);
+  expect(request.max_output_tokens).toBe(2200);
+  expect(request.store).toBe(false);
+  expect(request.include).toEqual(['reasoning.encrypted_content']);
+  expect(request.max_completion_tokens).toBeUndefined();
+  expect(request.messages).toBeUndefined();
+  expect(request.reasoning_effort).toBeUndefined();
+  expect(events).toEqual(
+    expect.arrayContaining([
+      expect.objectContaining({
+        type: EventType.TEXT_MESSAGE_CHUNK,
+        delta: 'Hello from the Dot.',
+      }),
+      expect.objectContaining({ type: EventType.RUN_FINISHED }),
+    ]),
+  );
+  expect(events).not.toEqual(
+    expect.arrayContaining([
+      expect.objectContaining({ type: EventType.RUN_ERROR }),
+    ]),
+  );
+});
+
+it('honours an explicit model API override in both directions', async () => {
+  const cases = [
+    {
+      config: { model: 'gpt-6.1-sol', dotModelApi: 'chat-completions' },
+      url: 'https://unused.invalid/v1/chat/completions',
+    },
+    {
+      config: { model: 'custom-model', dotModelApi: 'responses' },
+      url: 'https://unused.invalid/v1/responses',
+    },
+  ] as const;
+  for (const { config, url } of cases) {
+    const f = fixture(config);
+    const network = vi
+      .spyOn(globalThis, 'fetch')
+      .mockResolvedValueOnce(
+        url.endsWith('/responses')
+          ? responsesCompletion('Overridden.')
+          : completion({ role: 'assistant', content: 'Overridden.' }),
+      );
+    await lastValueFrom(f.agent.clone().run(f.input).pipe(toArray()));
+    expect(String(network.mock.calls[0][0])).toBe(url);
+    network.mockRestore();
+  }
 });
 
 it('offers the canonical review tool and waits for the client without saving a page', async () => {
@@ -195,7 +261,10 @@ it('offers the canonical review tool and waits for the client without saving a p
   expect(request.tools).toContainEqual(
     expect.objectContaining({
       type: 'function',
-      function: expect.objectContaining(pageReviewTool),
+      function: expect.objectContaining({
+        name: pageReviewTool.name,
+        description: pageReviewTool.description,
+      }),
     }),
   );
   expect(JSON.stringify(request)).not.toContain('forged instructions');

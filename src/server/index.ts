@@ -20,6 +20,7 @@ import {
   extraHeadersFromEnv,
   type PlatformConfig,
 } from './platform-config.js';
+import { dotModelApiFromEnv } from './model-api.js';
 // This fork sends nothing to CopilotKit. The MIT runtime and client packages
 // carry an opt-out telemetry path that defaults to posting to
 // telemetry.copilotkit.ai; disabling it here is effective because Node reads
@@ -54,6 +55,7 @@ const config: PlatformConfig = {
   apiKey: process.env.OPENAI_API_KEY,
   model: process.env.OPENAI_MODEL,
   baseUrl: process.env.OPENAI_BASE_URL ?? 'https://api.openai.com/v1',
+  dotModelApi: dotModelApiFromEnv(process.env),
   extraHeaders: extraHeadersFromEnv(process.env),
   agentRunTimeoutMs: agentRunTimeoutMsFromEnv(process.env),
   webSearchProvider: webSearchProvider(process.env.WEB_SEARCH_PROVIDER),

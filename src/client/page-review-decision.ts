@@ -34,7 +34,10 @@ export function matchesReviewedDraft(
     draft.success &&
     draft.data.title === page.reviewDraft.title &&
     draft.data.content === page.reviewDraft.content &&
-    draft.data.spaceId === page.reviewDraft.spaceId
+    draft.data.spaceId === page.reviewDraft.spaceId &&
+    (draft.data.pageId ?? null) === (page.reviewDraft.pageId ?? null) &&
+    (draft.data.expectedRevision ?? null) ===
+      (page.reviewDraft.expectedRevision ?? null)
   );
 }
 

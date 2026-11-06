@@ -127,6 +127,11 @@ export function App() {
   const [capture, setCapture] = useState<Result>();
   const [prompt, setPrompt] = useState('');
   const [pendingPrompt, setPendingPrompt] = useState<string>();
+  // The just-created conversation, kept until the next workspace snapshot
+  // includes it. A refresh that started before creation can arrive afterwards
+  // without it; rendering only from that snapshot would unmount the chat and
+  // lose the first turn.
+  const [createdThread, setCreatedThread] = useState<Conversation>();
   const [busy, setBusy] = useState(false);
   const [search, setSearch] = useState('');
   const [taskDetail, setTaskDetail] = useState<Detail>();
@@ -196,9 +201,15 @@ export function App() {
   const dot =
     workspace?.dots.find((item) => item.id === selectedDot) ??
     workspace?.dots[0];
-  const thread = workspace?.conversations.find(
-    (item) => item.id === selectedThread && item.dotId === dot?.id,
-  );
+  const thread =
+    workspace?.conversations.find(
+      (item) => item.id === selectedThread && item.dotId === dot?.id,
+    ) ??
+    (createdThread &&
+    createdThread.id === selectedThread &&
+    createdThread.dotId === dot?.id
+      ? createdThread
+      : undefined);
   const configured = !!workspace && workspace.setup.missing.length === 0;
   const setupStep = workspace
     ? dialog?.type === 'settings'
@@ -216,6 +227,7 @@ export function App() {
     setSelectedThread(
       workspace?.conversations.find((item) => item.dotId === next.id)?.id,
     );
+    setCreatedThread(undefined);
     setView('chat');
     setMobile(false);
     setPendingPrompt(undefined);
@@ -229,12 +241,13 @@ export function App() {
         dotId: dot.id,
         title: text?.slice(0, 80) || t('app.newThought'),
       });
-      await refresh();
+      setCreatedThread(next);
       setSelectedThread(next.id);
       setPendingPrompt(text);
       setPrompt('');
       setView('chat');
       setMobile(false);
+      await refresh();
     } catch (e) {
       setError(
         e instanceof Error ? e.message : t('app.createConversationFailed'),
@@ -464,6 +477,7 @@ export function App() {
               );
               if (conversation) setSelectedDot(conversation.dotId);
               setSelectedThread(id);
+              setCreatedThread(undefined);
               setView('chat');
               setMobile(false);
             }}

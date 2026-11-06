@@ -476,6 +476,8 @@ export const en = {
   'review.checkingNote': 'Checking whether this draft was already saved.',
   'review.noPageSaved': 'No page was saved.',
   'review.nothingSavedNote': 'Nothing is saved until you approve.',
+  'review.updatesExistingPage':
+    'Approving updates the existing page in this Space.',
 
   // Result pane
   'result.brief': 'Brief',

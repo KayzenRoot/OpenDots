@@ -160,6 +160,35 @@ it('keeps page routes behind owner authentication and browser origin checks', as
   ).toBe(403);
 });
 
+it('updates a reviewed existing page through the owner API', async () => {
+  const { ws, app } = fixture();
+  const dot = ws.dots()[0];
+  ws.bindThread('review-update', dot.id, 'Review update');
+  const page = ws.pages.create(dot.spaceId, {
+    title: 'Launch brief',
+    content: 'First version',
+  });
+  const path = '/api/conversations/review-update/reviewed-page';
+  const response = await app.request(
+    path,
+    request({
+      title: 'Launch brief',
+      content: 'Revised version',
+      spaceId: dot.spaceId,
+      pageId: page.id,
+      expectedRevision: page.revision,
+      toolCallId: 'review-update-1',
+    }),
+  );
+  expect(response.status).toBe(201);
+  expect(await response.json()).toMatchObject({
+    id: page.id,
+    content: 'Revised version',
+    revision: page.revision + 1,
+  });
+  expect(ws.pages.list(dot.spaceId)).toHaveLength(1);
+});
+
 it('saves reviewed drafts once and rechecks the Dot’s Space access', async () => {
   const { ws, app } = fixture();
   const dot = ws.dots()[0];

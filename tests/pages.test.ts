@@ -109,6 +109,92 @@ it('migrates review receipts and retains their original draft after restart', ()
   rmSync(dir, { recursive: true });
 });
 
+it('updates an existing page in place when a review targets it', () => {
+  const store = new WorkspaceStore(':memory:', 'owner');
+  const space = store.spaces()[0].id;
+  const original = store.pages.create(space, {
+    title: 'Launch brief',
+    content: 'First version',
+  });
+
+  const reviewed = store.pages.createReviewed(
+    space,
+    {
+      title: 'Launch brief',
+      content: 'Revised version',
+      pageId: original.id,
+      expectedRevision: original.revision,
+    },
+    'review-thread',
+    'call-update',
+  );
+
+  const pages = store.pages.list(space);
+  expect(pages).toHaveLength(1);
+  expect(reviewed.id).toBe(original.id);
+  expect(store.pages.get(space, original.id)).toMatchObject({
+    title: 'Launch brief',
+    content: 'Revised version',
+    revision: original.revision + 1,
+  });
+  expect(
+    store.pages.reviewReceipt('review-thread', 'call-update'),
+  ).toMatchObject({
+    pageId: original.id,
+    draft: {
+      pageId: original.id,
+      expectedRevision: original.revision,
+    },
+  });
+  // A replay returns the updated page instead of applying the update twice.
+  const replay = store.pages.createReviewed(
+    space,
+    {
+      title: 'Launch brief',
+      content: 'Revised version',
+      pageId: original.id,
+      expectedRevision: original.revision,
+    },
+    'review-thread',
+    'call-update',
+  );
+  expect(replay.revision).toBe(original.revision + 1);
+  store.close();
+});
+
+it('rejects a review of a page changed after the draft and writes no receipt', () => {
+  const store = new WorkspaceStore(':memory:', 'owner');
+  const space = store.spaces()[0].id;
+  const original = store.pages.create(space, {
+    title: 'Launch brief',
+    content: 'First version',
+  });
+  store.pages.update(space, original.id, {
+    expectedRevision: original.revision,
+    content: 'Edited by the owner',
+  });
+
+  expect(() =>
+    store.pages.createReviewed(
+      space,
+      {
+        title: 'Launch brief',
+        content: 'Stale draft',
+        pageId: original.id,
+        expectedRevision: original.revision,
+      },
+      'review-thread',
+      'call-stale',
+    ),
+  ).toThrow(/changed/);
+  expect(store.pages.get(space, original.id).content).toBe(
+    'Edited by the owner',
+  );
+  expect(store.pages.reviewReceipt('review-thread', 'call-stale')).toBeNull();
+  expect(store.pages.list(space)).toHaveLength(1);
+  store.close();
+});
+
 it('deletes a page and reparents descendants safely', () => {
   const store = new WorkspaceStore(':memory:', 'owner');
   const space = store.spaces()[0].id;

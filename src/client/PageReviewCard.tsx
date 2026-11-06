@@ -142,6 +142,9 @@ export function PageReviewCard({
       </header>
       <div className="page-review-body">
         <h3>{draft.success ? draft.data.title : t('review.preparing')}</h3>
+        {draft.success && draft.data.pageId && (
+          <p className="muted">{t('review.updatesExistingPage')}</p>
+        )}
         {draft.success && (
           <ReactMarkdown
             remarkPlugins={[remarkGfm]}

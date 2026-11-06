@@ -43,6 +43,7 @@ services:
       OPENAI_BASE_URL: ${OPENAI_BASE_URL:-https://api.openai.com/v1}
       OPENAI_MODEL: ${OPENAI_MODEL:-}
       OPENAI_EXTRA_HEADERS: ${OPENAI_EXTRA_HEADERS:-}
+      DOT_MODEL_API: ${DOT_MODEL_API:-auto}
       WEB_SEARCH_PROVIDER: ${WEB_SEARCH_PROVIDER:-parallel}
       PARALLEL_API_KEY: ${PARALLEL_API_KEY:-}
       BROWSER_URL: http://browser:4311
