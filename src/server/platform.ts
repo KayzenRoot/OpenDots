@@ -1,4 +1,4 @@
-import type { ModelConfigStore } from './model-config.js';
+import type { ModelConfigStore, DotModelConfigStore } from './model-config.js';
 import { ComputerService } from './computer-service.js';
 import { ConnectionService } from './connections.js';
 import { PageService, type PageConversations } from './page-service.js';
@@ -29,6 +29,8 @@ export class Platform {
   readonly connections: ConnectionService;
   readonly conversations?: ConversationStorage;
   readonly modelConfig?: ModelConfigStore;
+  /** Per-Dot model overrides (WORK-030), when a database is configured. */
+  readonly dotModelConfig?: DotModelConfigStore;
   /** Readiness probe: rejects unless conversation storage is configured and answers. */
   async ping(): Promise<void> {
     if (!this.conversations) throw new Error('Conversation storage is absent.');
@@ -49,8 +51,10 @@ export class Platform {
     slackEvents?: SlackStore,
     learning?: LearningStore,
     modelConfig?: ModelConfigStore,
+    dotModelConfig?: DotModelConfigStore,
   ) {
     this.modelConfig = modelConfig;
+    this.dotModelConfig = dotModelConfig;
     this.setupTelemetry = new SetupTelemetry(store);
     this.computers = new ComputerService(
       workspace,
@@ -87,23 +91,7 @@ export class Platform {
     });
     this.runner = runner;
     const runtime = new CopilotRuntime({
-      agents: async () =>
-        Object.fromEntries(
-          workspace
-            .dots()
-            .map((dot) => [
-              dot.id,
-              new DotAgent(
-                store,
-                workspace,
-                config,
-                dot.id,
-                false,
-                this.setupTelemetry,
-                this.learning,
-              ),
-            ]),
-        ),
+      agents: () => this.agents(),
       runner,
       licenseToken: undefined,
     });
@@ -112,6 +100,33 @@ export class Platform {
       basePath: '/api/copilotkit',
       cors: { origin: [] },
     });
+  }
+  /**
+   * One DotAgent per Dot, built on demand (the runtime calls this per request,
+   * so a saved per-Dot model override applies without a restart). The Dot's
+   * model config is resolved here — override first, then the global provider —
+   * and handed to the agent (WORK-030).
+   */
+  async agents(): Promise<Record<string, DotAgent>> {
+    const entries = await Promise.all(
+      this.workspace.dots().map(async (dot) => {
+        const model = (await this.dotModelConfig?.resolve(dot.id)) ?? undefined;
+        return [
+          dot.id,
+          new DotAgent(
+            this.store,
+            this.workspace,
+            this.config,
+            dot.id,
+            false,
+            this.setupTelemetry,
+            this.learning,
+            model,
+          ),
+        ] as const;
+      }),
+    );
+    return Object.fromEntries(entries);
   }
   private pageConversations(): PageConversations {
     const conversations = this.conversations;

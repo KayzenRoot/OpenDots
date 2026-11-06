@@ -96,6 +96,20 @@ const migrations: readonly string[] = [
   CREATE INDEX IF NOT EXISTS learning_passes_dot_created_idx
     ON learning_passes (dot_id, created_at);
   `,
+  // Version 5: the per-Dot model override (WORK-030). The operator's global
+  // provider stays the default; a row here points one Dot at a different
+  // provider combination with its own sealed key. `dots` lives in SQLite, so a
+  // Postgres foreign key to it is impossible: existence is validated at the
+  // application layer before every write (see DotModelConfigStore.save).
+  `
+  CREATE TABLE IF NOT EXISTS dot_model_config (
+    dot_id TEXT PRIMARY KEY,
+    base_url TEXT NOT NULL,
+    model TEXT NOT NULL,
+    api_key_sealed TEXT NOT NULL,
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+  );
+  `,
 ];
 
 /** Build a bounded connection pool. The connection string is never logged. */

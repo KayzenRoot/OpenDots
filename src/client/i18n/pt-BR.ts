@@ -385,6 +385,28 @@ export const ptBR: Record<keyof typeof en, string> = {
   'model.pasteKey': 'Cole sua chave',
   'model.testConnection': 'Testar conexão',
 
+  // Per-Dot model override
+  'dotModel.title': 'Modelo deste Dot',
+  'dotModel.notConfigured':
+    'Nenhum provedor de modelo está configurado ainda. Defina o provedor global nas Configurações.',
+  'dotModel.inherited': 'Este Dot usa o modelo do provedor global: {model}.',
+  'dotModel.set': 'Este Dot usa {model}, definido só para ele.',
+  'dotModel.overrideHelp':
+    'Deixe os campos em branco para continuar herdando o provedor global, ou preencha-os para dar a este Dot uma URL base, um modelo e uma chave próprios.',
+  'dotModel.replaceKey': 'Informe uma nova chave para substituir',
+  'dotModel.pasteKey': 'Cole sua chave',
+  'dotModel.testConnection': 'Testar conexão',
+  'dotModel.testing': 'Testando a conexão…',
+  'dotModel.accepted': 'O provedor aceitou esta configuração.',
+  'dotModel.testFailed': 'O teste falhou.',
+  'dotModel.testingSaving': 'Testando e salvando…',
+  'dotModel.saved': 'Salvo. As novas conversas deste Dot usam este provedor.',
+  'dotModel.saveFailed': 'Não foi possível salvar.',
+  'dotModel.remove': 'Voltar ao provedor global',
+  'dotModel.removing': 'Restaurando o provedor global…',
+  'dotModel.removed': 'Este Dot volta a herdar o provedor global.',
+  'dotModel.removeFailed': 'Não foi possível restaurar o provedor global.',
+
   // Page conversation dock
   'pageChat.saveFirst':
     'Salve ou resolva as alterações do documento antes de iniciar o chat da página.',

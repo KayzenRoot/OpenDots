@@ -1,4 +1,5 @@
 import { ModelSettings } from './ModelSettings';
+import { DotModelSettings } from './DotModelSettings';
 import { useEffect, useRef, useState } from 'react';
 import { X } from 'lucide-react';
 import type { Dot, Memory, State, WorkspaceState } from '../shared/types';
@@ -394,6 +395,9 @@ export function WorkspaceDialog({
           )}
           {dialog.type === 'dot' && dialog.dot && (
             <SkillsSection dotId={dialog.dot.id} />
+          )}
+          {dialog.type === 'dot' && dialog.dot && (
+            <DotModelSettings dotId={dialog.dot.id} />
           )}
           {dialog.type === 'dot' && dialog.dot && (
             <ConnectionsSection dotId={dialog.dot.id} />

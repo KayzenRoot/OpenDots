@@ -12,7 +12,7 @@ import { Platform } from './platform.js';
 import { ConversationStore } from './conversation-store.js';
 import { LearningStore } from './learning-store.js';
 import { SlackStore } from './slack-store.js';
-import { ModelConfigStore } from './model-config.js';
+import { ModelConfigStore, DotModelConfigStore } from './model-config.js';
 import { dirname, join } from 'node:path';
 import { createPool, migrate } from './pg.js';
 import {
@@ -110,6 +110,14 @@ if (saved) {
   config.model = saved.model;
   config.apiKey = saved.apiKey;
 }
+// Per-Dot overrides (WORK-030) share the master key file and treat the global
+// provider above as the fallback when a Dot has none.
+const dotModelConfig = new DotModelConfigStore(
+  pool,
+  process.env.MASTER_KEY_PATH ?? join(dirname(database), 'master.key'),
+  (dotId) => !!workspace.dot(dotId),
+  modelConfig,
+);
 const platform = new Platform(
   store,
   workspace,
@@ -118,6 +126,7 @@ const platform = new Platform(
   slackEvents,
   learning,
   modelConfig,
+  dotModelConfig,
 );
 try {
   await platform.runner?.preloadAll();

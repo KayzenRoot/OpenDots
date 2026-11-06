@@ -384,6 +384,28 @@ export const en = {
   'model.pasteKey': 'Paste your key',
   'model.testConnection': 'Test connection',
 
+  // Per-Dot model override
+  'dotModel.title': 'Model for this Dot',
+  'dotModel.notConfigured':
+    'No model provider is configured yet. Set the global provider in Settings.',
+  'dotModel.inherited': 'This Dot uses the global provider model {model}.',
+  'dotModel.set': 'This Dot uses {model}, set just for it.',
+  'dotModel.overrideHelp':
+    'Leave the fields blank to keep inheriting the global provider, or fill them in to give this Dot its own base URL, model and key.',
+  'dotModel.replaceKey': 'Enter a new key to replace it',
+  'dotModel.pasteKey': 'Paste your key',
+  'dotModel.testConnection': 'Test connection',
+  'dotModel.testing': 'Testing the connection…',
+  'dotModel.accepted': 'The provider accepted this configuration.',
+  'dotModel.testFailed': 'Test failed.',
+  'dotModel.testingSaving': 'Testing and saving…',
+  'dotModel.saved': 'Saved. New conversations with this Dot use this provider.',
+  'dotModel.saveFailed': 'Save failed.',
+  'dotModel.remove': 'Restore the global provider',
+  'dotModel.removing': 'Restoring the global provider…',
+  'dotModel.removed': 'This Dot inherits the global provider again.',
+  'dotModel.removeFailed': 'Could not restore the global provider.',
+
   // Page conversation dock
   'pageChat.saveFirst':
     'Save or resolve your document changes before starting page chat.',

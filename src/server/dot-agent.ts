@@ -31,6 +31,7 @@ import {
 import { browserResponse } from './research.js';
 import { answerObserver, type SetupTelemetry } from './setup-telemetry.js';
 import { modelOptionsFor, resolveModelApi } from './model-api.js';
+import type { ModelConfig } from './model-config.js';
 const channelError = () => ({
   type: EventType.RUN_ERROR,
   message:
@@ -47,6 +48,9 @@ export class DotAgent extends AbstractAgent {
     private channel = false,
     private setupTelemetry?: SetupTelemetry,
     private learning?: SkillSource,
+    // Per-Dot model override (WORK-030), resolved by the platform when it
+    // builds one DotAgent per Dot. When absent the global provider applies.
+    private modelOverride?: ModelConfig,
   ) {
     super({ agentId: dotId });
   }
@@ -59,6 +63,7 @@ export class DotAgent extends AbstractAgent {
       this.channel,
       this.setupTelemetry,
       this.learning,
+      this.modelOverride,
     );
   }
   abortRun() {
@@ -119,7 +124,14 @@ export class DotAgent extends AbstractAgent {
           );
         // Validates that the thread belongs to this Dot and owner.
         this.workspace.requireThread(input.threadId, dot.id);
-        if (!this.config.apiKey || !this.config.model) {
+        // Effective model config: the Dot's override when one was resolved,
+        // otherwise the global provider from the platform config.
+        const effective = this.modelOverride ?? {
+          baseUrl: this.config.baseUrl,
+          model: this.config.model ?? '',
+          apiKey: this.config.apiKey ?? '',
+        };
+        if (!effective.apiKey || !effective.model) {
           configurationFailure = true;
           this.setupTelemetry?.capture({
             kind: 'setup_failed',
@@ -330,12 +342,12 @@ export class DotAgent extends AbstractAgent {
             ? this.store.memories().map((memory) => memory.text)
             : [];
         const modelApi = resolveModelApi(
-          this.config.model,
+          effective.model,
           this.config.dotModelApi,
         );
-        const adapter = openaiCompatibleText(this.config.model, {
-          apiKey: this.config.apiKey,
-          baseURL: this.config.baseUrl ?? 'https://api.openai.com/v1',
+        const adapter = openaiCompatibleText(effective.model, {
+          apiKey: effective.apiKey,
+          baseURL: effective.baseUrl ?? 'https://api.openai.com/v1',
           api: modelApi,
           maxRetries: 1,
           // Gateways such as OpenCode Go require routing headers (for example

@@ -7,6 +7,7 @@ import {
 } from 'node:fs';
 import { dirname } from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
+import type { Pool } from 'pg';
 import { generateMasterKey, open, seal } from './secret-box.js';
 
 export interface ModelConfig {
@@ -69,6 +70,89 @@ export class ModelConfigStore {
         seal(config.apiKey, this.key),
         new Date().toISOString(),
       );
+  }
+}
+
+/**
+ * Per-Dot model overrides (WORK-030). The global `ModelConfigStore` row stays
+ * the default; a row here points one Dot at a different provider combination
+ * and its own sealed credential. Overrides live in the Postgres `dot_model_config`
+ * table while `dots` lives in SQLite, so there can be no foreign key: `save`
+ * validates that the Dot exists through an application-layer callback instead.
+ * The key is sealed with the same master key file as the global store, so a
+ * copy of the database alone still does not expose any provider key.
+ */
+export class DotModelConfigStore {
+  private readonly pool: Pool;
+  private readonly key: Buffer;
+
+  constructor(
+    pool: Pool,
+    keyPath: string,
+    private readonly dotExists: (dotId: string) => boolean,
+    private readonly fallback?: Pick<ModelConfigStore, 'get'>,
+  ) {
+    this.pool = pool;
+    this.key = loadOrCreateKey(keyPath);
+  }
+
+  /** The Dot's own override, or null when it inherits the global provider. */
+  async get(dotId: string): Promise<ModelConfig | null> {
+    const result = await this.pool.query<{
+      base_url: string;
+      model: string;
+      api_key_sealed: string;
+    }>(
+      'SELECT base_url, model, api_key_sealed FROM dot_model_config WHERE dot_id = $1',
+      [dotId],
+    );
+    const row = result.rows[0];
+    if (!row) return null;
+    return {
+      baseUrl: row.base_url,
+      model: row.model,
+      apiKey: open(row.api_key_sealed, this.key),
+    };
+  }
+
+  /** Public view of the override: never the key, only that one is stored. */
+  async describe(dotId: string): Promise<{
+    baseUrl: string;
+    model: string;
+    hasKey: boolean;
+  } | null> {
+    const result = await this.pool.query<{
+      base_url: string;
+      model: string;
+    }>('SELECT base_url, model FROM dot_model_config WHERE dot_id = $1', [
+      dotId,
+    ]);
+    const row = result.rows[0];
+    return row
+      ? { baseUrl: row.base_url, model: row.model, hasKey: true }
+      : null;
+  }
+
+  async save(dotId: string, config: ModelConfig): Promise<void> {
+    if (!this.dotExists(dotId)) throw new Error('Dot not found.');
+    await this.pool.query(
+      `INSERT INTO dot_model_config (dot_id, base_url, model, api_key_sealed, updated_at)
+       VALUES ($1, $2, $3, $4, now())
+       ON CONFLICT(dot_id) DO UPDATE SET base_url=excluded.base_url, model=excluded.model, api_key_sealed=excluded.api_key_sealed, updated_at=now()`,
+      [dotId, config.baseUrl, config.model, seal(config.apiKey, this.key)],
+    );
+  }
+
+  /** Removing an override is idempotent: the Dot inherits the global provider. */
+  async delete(dotId: string): Promise<void> {
+    await this.pool.query('DELETE FROM dot_model_config WHERE dot_id = $1', [
+      dotId,
+    ]);
+  }
+
+  /** Effective config: the Dot's override, else the global provider, else null. */
+  async resolve(dotId: string): Promise<ModelConfig | null> {
+    return (await this.get(dotId)) ?? this.fallback?.get() ?? null;
   }
 }
 

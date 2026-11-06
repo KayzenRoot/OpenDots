@@ -1,5 +1,6 @@
 import { computerRoutes } from './computer-routes.js';
 import { modelRoutes } from './model-routes.js';
+import { dotModelRoutes } from './dot-model-routes.js';
 import { UpdateChecker, updateRoutes } from './update-routes.js';
 import { skillRoutes } from './skill-routes.js';
 import { connectionRoutes } from './connection-routes.js';
@@ -162,6 +163,17 @@ export function createApp({
     app.route(
       '/api',
       modelRoutes(platform.modelConfig, fetch, platform.config.extraHeaders),
+    );
+  if (platform && platform.modelConfig && platform.dotModelConfig)
+    app.route(
+      '/api',
+      dotModelRoutes(
+        platform.dotModelConfig,
+        platform.workspace,
+        platform.modelConfig,
+        fetch,
+        platform.config.extraHeaders,
+      ),
     );
   app.route('/api', updateRoutes(updateChecker));
   if (platform && platform.learning)
