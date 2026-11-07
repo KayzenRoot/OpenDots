@@ -232,6 +232,15 @@ export function App() {
     setMobile(false);
     setPendingPrompt(undefined);
   };
+  /** After a Dot is deleted, leave any view that pointed at it and let the
+   * refreshed workspace select a valid remaining Dot. */
+  const dotDeleted = async (id: string) => {
+    setSelectedDot((previous) => (previous === id ? '' : previous));
+    setSelectedThread(undefined);
+    setCreatedThread(undefined);
+    setPendingPrompt(undefined);
+    await refresh();
+  };
   const newConversation = async (text?: string) => {
     if (!dot || !configured || busy) return;
     setBusy(true);
@@ -254,6 +263,29 @@ export function App() {
       );
     } finally {
       setBusy(false);
+    }
+  };
+  /** Delete a conversation after an explicit confirmation, then navigate
+   * away if the deleted thread was open: the UI must never keep pointing at
+   * a thread that no longer exists. */
+  const deleteThread = async (id: string) => {
+    const conversation = workspace?.conversations.find(
+      (item) => item.id === id,
+    );
+    if (!conversation) return;
+    if (
+      !window.confirm(t('threads.deleteConfirm', { title: conversation.title }))
+    )
+      return;
+    if (!(await mutate(`/threads/${id}`, 'DELETE', {}))) return;
+    if (selectedThread === id) {
+      setSelectedThread(
+        workspace?.conversations.find(
+          (item) => item.dotId === conversation.dotId && item.id !== id,
+        )?.id,
+      );
+      setCreatedThread(undefined);
+      setPendingPrompt(undefined);
     }
   };
   if (needsAuth)
@@ -482,6 +514,7 @@ export function App() {
               setMobile(false);
             }}
             onNew={() => void newConversation()}
+            onDelete={(id) => void deleteThread(id)}
           />
         ) : (
           <div className="sidebar-empty">{t('app.setupSidebar')}</div>
@@ -966,6 +999,7 @@ export function App() {
           workspace={workspace}
           onClose={() => setDialog(undefined)}
           mutate={mutate}
+          onDotDeleted={(id) => void dotDeleted(id)}
         />
       )}
     </div>

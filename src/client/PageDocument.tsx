@@ -20,6 +20,7 @@ import { api } from './api';
 import { usePageAutosave } from './editor/use-page-autosave';
 import { inspectMarkdown } from './editor/markdown';
 import { DocumentMenu } from './editor/DocumentMenu';
+import { PageTitleField } from './editor/PageTitleField';
 import { PageConversation } from './PageConversation';
 import { useTranslation } from './i18n';
 const RichEditor = lazy(() => import('./editor/RichEditor'));
@@ -314,15 +315,9 @@ export function PageDocument({
                 </button>
               </div>
             )}
-            <input
-              className="document-title"
-              aria-label={t('doc.pageTitle')}
-              placeholder={t('doc.untitledPage')}
-              maxLength={160}
+            <PageTitleField
               value={draft.title}
-              onChange={(event) =>
-                controller.edit({ title: event.target.value })
-              }
+              onChange={(title) => controller.edit({ title })}
             />
             {sourceMode ? (
               <>

@@ -1,8 +1,9 @@
 import { ModelSettings } from './ModelSettings';
 import { DotModelSettings } from './DotModelSettings';
 import { useEffect, useRef, useState } from 'react';
-import { X } from 'lucide-react';
+import { Trash2, X } from 'lucide-react';
 import type { Dot, Memory, State, WorkspaceState } from '../shared/types';
+import { api } from './api';
 import { ConnectionsSection } from './ConnectionsSection';
 import { SkillsSection } from './SkillsSection';
 import {
@@ -39,12 +40,15 @@ export function WorkspaceDialog({
   workspace,
   onClose,
   mutate,
+  onDotDeleted,
 }: {
   dialog: Dialog;
   state: State;
   workspace: WorkspaceState;
   onClose: () => void;
   mutate: (path: string, method: string, body?: unknown) => Promise<boolean>;
+  /** Called after an existing Dot was deleted, so the app can navigate away. */
+  onDotDeleted?: (id: string) => void;
 }) {
   const { t } = useTranslation();
   const [name, setName] = useState(
@@ -92,6 +96,12 @@ export function WorkspaceDialog({
   );
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
+  // Deleting a Dot is armed separately from saving: the owner must type the
+  // Dot's exact name, so a stray click never deletes a specialist.
+  const [deleteArmed, setDeleteArmed] = useState(false);
+  const [deleteName, setDeleteName] = useState('');
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState('');
   const [theme, setTheme] = useState(themePreference);
   const [language, setLanguage] = useState(localePreference);
   const container = useRef<HTMLElement>(null);
@@ -138,6 +148,23 @@ export function WorkspaceDialog({
           : dialog.type === 'memory'
             ? t('dialog.titleMemory')
             : t('dialog.titleSchedule');
+  const confirmDotDelete = async () => {
+    const dot = dialog.type === 'dot' ? dialog.dot : undefined;
+    if (!dot || deleting) return;
+    setDeleting(true);
+    setDeleteError('');
+    try {
+      await api(`/dots/${dot.id}`, 'DELETE', {});
+      onDotDeleted?.(dot.id);
+      onClose();
+    } catch (e) {
+      setDeleteError(
+        e instanceof Error ? e.message : t('dialog.deleteDotFailed'),
+      );
+    } finally {
+      setDeleting(false);
+    }
+  };
   return (
     <div className="modal-backdrop" onClick={onClose}>
       <section
@@ -401,6 +428,63 @@ export function WorkspaceDialog({
           )}
           {dialog.type === 'dot' && dialog.dot && (
             <ConnectionsSection dotId={dialog.dot.id} />
+          )}
+          {dialog.type === 'dot' && dialog.dot && (
+            <fieldset className="space-access-fields danger-zone">
+              <legend>{t('dialog.deleteDotLegend')}</legend>
+              <p className="muted">{t('dialog.deleteDotHelp')}</p>
+              {deleteArmed ? (
+                <>
+                  <label className="field-label" htmlFor="delete-dot-name">
+                    {t('dialog.deleteDotType', { name: dialog.dot.name })}
+                  </label>
+                  <input
+                    id="delete-dot-name"
+                    value={deleteName}
+                    autoComplete="off"
+                    maxLength={40}
+                    placeholder={dialog.dot.name}
+                    onChange={(event) => setDeleteName(event.target.value)}
+                  />
+                  <div className="delete-dot-actions">
+                    <button
+                      type="button"
+                      className="danger-button"
+                      disabled={deleting || deleteName !== dialog.dot.name}
+                      onClick={() => void confirmDotDelete()}
+                    >
+                      <Trash2 size={14} />
+                      {t('dialog.deleteDotConfirm')}
+                    </button>
+                    <button
+                      type="button"
+                      disabled={deleting}
+                      onClick={() => {
+                        setDeleteArmed(false);
+                        setDeleteName('');
+                        setDeleteError('');
+                      }}
+                    >
+                      {t('common.cancel')}
+                    </button>
+                  </div>
+                </>
+              ) : (
+                <button
+                  type="button"
+                  className="danger-button"
+                  onClick={() => setDeleteArmed(true)}
+                >
+                  <Trash2 size={14} />
+                  {t('dialog.deleteDot')}
+                </button>
+              )}
+              {deleteError && (
+                <p className="chat-error" role="alert">
+                  {deleteError}
+                </p>
+              )}
+            </fieldset>
           )}
           {dialog.type === 'schedule' && (
             <>

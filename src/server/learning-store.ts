@@ -327,4 +327,19 @@ export class LearningStore implements SkillSource {
     );
     return Number(rows[0]?.count ?? 0);
   }
+
+  /**
+   * Remove every per-Dot learning row. Called when the Dot itself is deleted:
+   * skills, learning markers and pass history are Dot-specific workspace data
+   * and must not outlive the Dot. Other Dots' rows are never touched.
+   */
+  async deleteDotData(dotId: string): Promise<void> {
+    await this.pool.query('DELETE FROM skills WHERE dot_id = $1', [dotId]);
+    await this.pool.query('DELETE FROM learning_passes WHERE dot_id = $1', [
+      dotId,
+    ]);
+    await this.pool.query('DELETE FROM learning_state WHERE dot_id = $1', [
+      dotId,
+    ]);
+  }
 }

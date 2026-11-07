@@ -54,3 +54,88 @@ it('migrates legacy Space ownership once and never restores revoked access on re
     rmSync(dir, { recursive: true, force: true });
   }
 });
+it('refuses to delete a Dot that still has conversations and removes a spent Dot without touching other Dots or shared Spaces', () => {
+  const store = new WorkspaceStore(':memory:', 'owner');
+  const shared = store.createSpace('Shared', 'Shared pages');
+  const other = store.createSpace('Other', 'Untouched');
+  const doomed = store.createDot(shared.id, 'Scout', 'Be concise', false, true);
+  const keeper = store.createDot(other.id, 'Keeper', 'Stay', true, false, [
+    shared.id,
+    other.id,
+  ]);
+  store.bindThread('thread-1', doomed.id, 'Design research');
+  store.pages.create(shared.id, { title: 'Shared page', content: 'Body' });
+  store.computers.patch(doomed.id, { enabled: true, browser: true });
+  store.connections.create(
+    doomed.id,
+    { name: 'GitHub', url: 'https://example.com/mcp' },
+    [],
+  );
+  store.computers.patch(keeper.id, { enabled: true });
+  store.connections.create(
+    keeper.id,
+    { name: 'Calendar', url: 'https://example.com/cal' },
+    [],
+  );
+
+  // The conversation is the hard dependency: refuse and say what to do.
+  const blocker = store.dotDeletionBlocker(doomed.id);
+  expect(blocker).toContain('1 conversation');
+  expect(store.dot(doomed.id)).toBeTruthy();
+
+  // Once the conversation is gone the Dot can be deleted.
+  expect(store.deleteThread('thread-1')).toBe(true);
+  expect(store.dotDeletionBlocker(doomed.id)).toBeUndefined();
+  expect(store.deleteDot(doomed.id)).toBe(true);
+  expect(store.dot(doomed.id)).toBeUndefined();
+
+  // The shared Space and its pages survive; the other Dot is untouched.
+  expect(store.spaces().map((space) => space.name)).toEqual(
+    expect.arrayContaining(['Shared', 'Other']),
+  );
+  expect(store.pages.list(shared.id)).toHaveLength(1);
+  expect(store.dot(keeper.id)).toBeTruthy();
+  expect(store.computers.permissions(keeper.id).enabled).toBe(true);
+  expect(store.connections.list(keeper.id)).toHaveLength(1);
+  expect(store.connections.list(doomed.id)).toHaveLength(0);
+  expect(store.computers.permissions(doomed.id).enabled).toBe(false);
+  expect(store.deleteDot('missing')).toBe(false);
+  store.close();
+});
+it('deletes a conversation with its local links, detaches saved pages, and is idempotent', () => {
+  const store = new WorkspaceStore(':memory:', 'owner');
+  const space = store.createSpace('Design', 'Design decisions');
+  const dot = store.createDot(space.id, 'Scout', 'Be concise', false, true);
+  store.bindThread('thread-1', dot.id, 'Design research');
+  store.pages.create(
+    space.id,
+    { title: 'From chat', content: 'Text' },
+    'thread-1',
+  );
+  store.pages.reserveThread('page-x', dot.id, 'thread-1');
+  store.createCall('thread-1');
+  store.saveCapture('thread-1', { brief: true });
+  store.bindTask('task-1', 'thread-1');
+  const source = store.pages.list(space.id)[0];
+  expect(source.sourceThreadId).toBe('thread-1');
+
+  expect(store.deleteThread('thread-1')).toBe(true);
+  expect(store.conversation('thread-1')).toBeUndefined();
+  expect(store.deleteThread('thread-1')).toBe(false);
+  expect(store.deleteThread('never-bound')).toBe(false);
+  // Saved pages stay, but no longer point at the deleted conversation.
+  expect(store.pages.list(space.id).map((page) => page.title)).toEqual([
+    'From chat',
+  ]);
+  expect(store.pages.list(space.id)[0].sourceThreadId).toBeNull();
+  expect(store.pages.thread('page-x', dot.id)).toBeUndefined();
+  expect(store.calls().filter((call) => call.threadId === 'thread-1')).toEqual(
+    [],
+  );
+  // The binding is gone, so thread-scoped reads refuse the deleted id.
+  expect(() => store.capture('thread-1')).toThrow(
+    'Conversation does not belong',
+  );
+  expect(store.taskThread('task-1')).toBeUndefined();
+  store.close();
+});

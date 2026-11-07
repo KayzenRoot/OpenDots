@@ -132,7 +132,7 @@ describePostgres('ConversationStore (PostgreSQL)', () => {
     expect(await store.listRuns('thread-1')).toEqual([]);
   });
 
-  it('cascades run deletion when the conversation is deleted', async () => {
+  it('cascades run and state deletion when the conversation is deleted', async () => {
     await store.createThread(thread());
     await store.appendRun({
       threadId: 'thread-1',
@@ -142,7 +142,11 @@ describePostgres('ConversationStore (PostgreSQL)', () => {
       events: [],
       messages: [{ id: 'm1', role: 'user', content: 'One' }],
     });
+    await store.saveState('thread-1', { count: 3 });
     await store.deleteThread('thread-1');
+    expect(await store.getThread('thread-1')).toBeNull();
     expect(await store.listRuns('thread-1')).toEqual([]);
+    expect(await store.getState('thread-1')).toBeNull();
+    expect(await store.getMessages('thread-1')).toEqual([]);
   });
 });

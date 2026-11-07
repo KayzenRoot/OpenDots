@@ -35,24 +35,46 @@ export function SpaceWorkspace({
   const { t } = useTranslation();
   const [pages, setPages] = useState<Page[]>([]);
   const removed = useRef(new Set<string>());
+  // Bumped on every local create/save/delete. A poll that started before the
+  // bump cannot prove those rows are gone, so its snapshot keeps them.
+  const mutations = useRef(0);
+  const [missingPageId, setMissingPageId] = useState<string>();
   const [error, setError] = useState('');
   const [loaded, setLoaded] = useState(false);
   const [outline, setOutline] = useState(false);
   useEffect(() => {
     let active = true;
+    let loading = false;
     const load = async () => {
+      // One list request at a time: an older response must never arrive after
+      // a newer one and resurrect rows the newer snapshot already reconciled.
+      if (loading) return;
+      loading = true;
+      const startedAt = mutations.current;
       try {
         const next = await api<Page[]>(`/spaces/${space.id}/pages`);
         if (active) {
-          setPages((previous) =>
-            mergePageSnapshot(previous, next, removed.current),
-          );
+          setPages((previous) => {
+            const retained = new Set(pageId ? [pageId] : []);
+            // A poll begun before a local mutation is not proof of absence.
+            if (mutations.current !== startedAt)
+              for (const page of previous) retained.add(page.id);
+            return mergePageSnapshot(previous, next, removed.current, retained);
+          });
+          if (mutations.current === startedAt)
+            setMissingPageId(
+              pageId && !next.some((page) => page.id === pageId)
+                ? pageId
+                : undefined,
+            );
           setLoaded(true);
           setError('');
         }
       } catch (e) {
         if (active)
           setError(e instanceof Error ? e.message : t('spaceNav.loadFailed'));
+      } finally {
+        loading = false;
       }
     };
     void load();
@@ -61,18 +83,18 @@ export function SpaceWorkspace({
       active = false;
       clearInterval(timer);
     };
-  }, [space.id]);
+  }, [space.id, pageId]);
   const page = pages.find((item) => item.id === pageId);
-  const saved = useCallback(
-    (next: Page) =>
-      setPages((previous) =>
-        previous.map((item) =>
-          item.id === next.id && item.revision < next.revision ? next : item,
-        ),
+  const saved = useCallback((next: Page) => {
+    mutations.current++;
+    setPages((previous) =>
+      previous.map((item) =>
+        item.id === next.id && item.revision < next.revision ? next : item,
       ),
-    [],
-  );
+    );
+  }, []);
   const deleted = useCallback((id: string) => {
+    mutations.current++;
     removed.current.add(id);
     setPages((previous) => {
       const parentId =
@@ -89,6 +111,7 @@ export function SpaceWorkspace({
         content: '',
         parentId,
       });
+      mutations.current++;
       setPages((previous) => [...previous, next]);
       onPage(next.id);
     } catch (e) {
@@ -103,6 +126,11 @@ export function SpaceWorkspace({
       {error && (
         <div className="document-load-error" role="alert">
           {error}
+        </div>
+      )}
+      {page && missingPageId === pageId && (
+        <div className="document-load-error" role="alert">
+          {t('space.deletedElsewhere')}
         </div>
       )}
       {!pageId ? (

@@ -560,6 +560,8 @@ export const en = {
   'space.pageNotFound': 'Page not found',
   'space.loadingPage': 'Loading page…',
   'space.backToAllPages': 'Back to all pages',
+  'space.deletedElsewhere':
+    'This page was deleted in another tab. Your draft is still available here; download it before leaving.',
 
   // Task controls
   'task.pause': 'Pause task',
@@ -614,6 +616,9 @@ export const en = {
     'Conversation sync unavailable. Check your runtime connection.',
   'threads.empty': 'Your first conversation will live here.',
   'threads.loadMore': 'Load more conversations',
+  'threads.deleteConfirm':
+    'Delete "{title}"? The conversation and its messages are removed permanently. This can\'t be undone.',
+  'threads.deleteAria': 'Delete conversation "{title}"',
 
   // Workspace dialog
   'dialog.titleSpace': 'A space for something.',
@@ -683,6 +688,13 @@ export const en = {
   'dialog.setupGuide': 'Template setup guide ↗',
   'dialog.memoryHelp':
     'Memories are explicit preferences, not automatic learning. Avoid secrets; enabled memories go to your model provider.',
+  'dialog.deleteDotLegend': 'Delete this Dot',
+  'dialog.deleteDotHelp':
+    'Deleting removes this Dot and its settings. Its conversations, Spaces and pages are kept: a Dot with conversations cannot be deleted until they are removed.',
+  'dialog.deleteDot': 'Delete this Dot…',
+  'dialog.deleteDotType': 'Type "{name}" to confirm deletion.',
+  'dialog.deleteDotConfirm': 'Delete Dot',
+  'dialog.deleteDotFailed': 'Could not delete this Dot.',
 
   // Editor
   'editor.placeholder': 'Start writing, or type / for blocks…',

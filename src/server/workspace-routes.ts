@@ -143,6 +143,34 @@ export function workspaceRoutes(platform: Platform, voice: VoiceService) {
     }
     return c.json(platform.workspace.updateDot(c.req.param('id'), data.data));
   });
+  app.delete('/dots/:id', async (c) => {
+    const id = c.req.param('id');
+    const dots = platform.workspace.dots();
+    if (!dots.some((dot) => dot.id === id))
+      return c.json({ error: 'Dot not found.' }, 404);
+    if (dots.length === 1)
+      return c.json({ error: 'Keep at least one Dot in the workspace.' }, 409);
+    const blocker = platform.workspace.dotDeletionBlocker(id);
+    if (blocker) return c.json({ error: blocker }, 409);
+    // The Dot's Postgres data (local skills, per-Dot model override) is
+    // removed first: if that fails, the Dot itself is untouched and the
+    // request can be retried.
+    try {
+      await platform.learning?.deleteDotData(id);
+      await platform.dotModelConfig?.delete(id);
+    } catch {
+      return c.json(
+        {
+          error:
+            'Could not remove this Dot’s saved skills and model override. Check the database connection and retry.',
+        },
+        503,
+      );
+    }
+    if (!platform.workspace.deleteDot(id))
+      return c.json({ error: 'Dot not found.' }, 404);
+    return c.json({ ok: true });
+  });
   app.post('/conversations', async (c) => {
     const data = z
       .object({
@@ -166,6 +194,12 @@ export function workspaceRoutes(platform: Platform, voice: VoiceService) {
   app.get('/conversations/:id/capture', (c) =>
     c.json(platform.workspace.capture(c.req.param('id'))),
   );
+  // Idempotent by design: a conversation that is already gone (a retried or
+  // racing delete) still answers 204 instead of erroring.
+  app.delete('/threads/:threadId', async (c) => {
+    await platform.deleteConversation(c.req.param('threadId'));
+    return c.body(null, 204);
+  });
   app.post('/voice/calls', async (c) => {
     const data = z
       .object({ threadId: z.string(), sdp: z.string().max(100000) })

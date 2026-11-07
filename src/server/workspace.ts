@@ -197,6 +197,54 @@ export class WorkspaceStore {
       .prepare('SELECT 1 FROM dot_spaces WHERE dotId=? AND spaceId=?')
       .get(dotId, spaceId);
   }
+  /**
+   * Why this Dot cannot be deleted right now, or undefined when it can.
+   *
+   * Conversations are the one hard dependency: they are the owner's chat
+   * history (locally bound and stored in Postgres), and deleting a Dot must
+   * never cascade them away silently. Scheduled tasks, voice calls and
+   * connected-tool actions all run inside conversations, so the conversation
+   * check covers them too. Spaces and pages are shared artifacts and are
+   * never a blocker.
+   */
+  dotDeletionBlocker(id: string): string | undefined {
+    const row = this.db
+      .prepare('SELECT COUNT(*) AS count FROM thread_bindings WHERE dotId=?')
+      .get(id) as { count: number | string | bigint };
+    const count = Number(row.count);
+    if (count > 0)
+      return count === 1
+        ? 'This Dot still has 1 conversation. Delete the conversation first; deleting a Dot never removes conversations.'
+        : `This Dot still has ${count} conversations. Delete them first; deleting a Dot never removes conversations.`;
+    return undefined;
+  }
+  /**
+   * Remove a Dot and its Dot-specific workspace data. Spaces, pages and other
+   * Dots are never touched. Returns false when the Dot does not exist.
+   */
+  deleteDot(id: string): boolean {
+    if (!this.dot(id)) return false;
+    this.db.exec('BEGIN IMMEDIATE');
+    try {
+      // Page-chat reservations and links reference this Dot only; the pages
+      // themselves stay and a new page conversation can be opened later.
+      for (const statement of [
+        'DELETE FROM page_threads WHERE dotId=?',
+        'DELETE FROM mcp_approvals WHERE dotId=?',
+        'DELETE FROM mcp_connections WHERE dotId=?',
+        'DELETE FROM computer_permissions WHERE dotId=?',
+        'DELETE FROM computer_audit WHERE dotId=?',
+        'DELETE FROM dot_spaces WHERE dotId=?',
+        'DELETE FROM dots WHERE id=?',
+      ])
+        this.db.prepare(statement).run(id);
+      this.db.exec('COMMIT');
+      return true;
+    } catch (error) {
+      this.db.exec('ROLLBACK');
+      throw error;
+    }
+  }
   private validateSpaceAccess(defaultSpace: string, spaceIds: string[]) {
     if (
       !spaceIds.includes(defaultSpace) ||
@@ -325,6 +373,46 @@ export class WorkspaceStore {
     if (!thread || (dotId && thread.dotId !== dotId))
       throw new Error('Conversation does not belong to this Dot and owner.');
     return thread;
+  }
+  conversation(id: string): Conversation | undefined {
+    return this.conversations().find((thread) => thread.id === id);
+  }
+  /**
+   * Permanently remove a conversation and everything tied to it in the local
+   * workspace database. Saved pages are kept, but detached from the thread so
+   * no stale source reference remains.
+   *
+   * @returns true when the thread existed and was removed; false when it was
+   * already gone, which makes retried or concurrent deletes idempotent.
+   */
+  deleteThread(threadId: string): boolean {
+    this.db.exec('BEGIN IMMEDIATE');
+    try {
+      const existed =
+        this.db.prepare('DELETE FROM thread_bindings WHERE id=?').run(threadId)
+          .changes > 0;
+      this.db
+        .prepare('DELETE FROM task_threads WHERE threadId=?')
+        .run(threadId);
+      this.db.prepare('DELETE FROM calls WHERE threadId=?').run(threadId);
+      this.db.prepare('DELETE FROM captures WHERE threadId=?').run(threadId);
+      this.db
+        .prepare('DELETE FROM page_threads WHERE threadId=?')
+        .run(threadId);
+      this.db
+        .prepare('DELETE FROM page_reviews WHERE threadId=?')
+        .run(threadId);
+      this.connections.deleteThreadData(threadId);
+      // Pages are durable artifacts: keep them, drop the now-stale source link.
+      this.db
+        .prepare('UPDATE pages SET sourceThreadId=NULL WHERE sourceThreadId=?')
+        .run(threadId);
+      this.db.exec('COMMIT');
+      return existed;
+    } catch (error) {
+      this.db.exec('ROLLBACK');
+      throw error;
+    }
   }
   bindTask(taskId: string, threadId: string) {
     this.requireThread(threadId);

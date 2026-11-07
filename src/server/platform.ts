@@ -234,6 +234,40 @@ export class Platform {
       .join('\n')
       .slice(-12000);
   }
+  /**
+   * Permanently delete one conversation everywhere it lives: the Postgres
+   * conversation row (its runs and state cascade) and the local workspace
+   * database (binding, calls, captures, task and page-chat links, connected-
+   * tool records). Saved pages are kept, detached from the thread.
+   *
+   * Idempotent: a conversation that is already gone — a retried delete, two
+   * tabs racing, or a delete that once failed part way — finishes any
+   * remaining remote cleanup and returns instead of erroring. The remote
+   * store goes first, so a failure there leaves the local rows in place and
+   * the owner can simply retry.
+   */
+  async deleteConversation(threadId: string): Promise<void> {
+    const conversations = this.conversations;
+    if (conversations) {
+      const bound = this.workspace.conversation(threadId);
+      if (
+        bound ||
+        (await conversations.getThread(threadId).catch(() => null))
+      ) {
+        try {
+          await conversations.deleteThread(threadId);
+        } catch {
+          throw new Error(
+            'Conversation storage could not delete this conversation. Check the database connection and retry.',
+          );
+        }
+      }
+    }
+    if (this.workspace.deleteThread(threadId))
+      // Drop the deleted thread from the runtime's cached thread list so a
+      // subsequent turn cannot target it.
+      await this.runner?.refreshThreadCache().catch(() => {});
+  }
   async handle(request: Request): Promise<Response> {
     if (!this.handler)
       return Response.json(

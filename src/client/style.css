@@ -1995,6 +1995,33 @@ h3 {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+/* Each conversation row pairs the open button with a delete action that only
+ * appears on hover or keyboard focus, so the list stays calm. */
+.thread-row {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+.thread-row .nav-item {
+  flex: 1;
+  min-width: 0;
+}
+.thread-row .thread-delete {
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  flex-shrink: 0;
+  margin-right: 4px;
+  color: #858690;
+  opacity: 0;
+}
+.thread-row:hover .thread-delete,
+.thread-row:focus-within .thread-delete {
+  opacity: 1;
+}
+.thread-row .thread-delete:hover {
+  color: #9b4a32;
+}
 .sidebar-empty,
 .sidebar-error {
   font-size: 10px;
@@ -2247,6 +2274,18 @@ h3 {
   background: #efeff2;
   padding: 13px;
   border-radius: 8px;
+}
+/* Markdown tables and long unbroken tokens must never push a bubble or the
+ * page conversation panel past its width (they clipped at ~1320px, #34). */
+.chat-bubble table {
+  width: 100%;
+  max-width: 100%;
+  table-layout: fixed;
+  border-collapse: collapse;
+}
+.chat-bubble td,
+.chat-bubble th {
+  overflow-wrap: anywhere;
 }
 .chat-welcome {
   text-align: center;
@@ -3587,6 +3626,33 @@ h3 {
   font-weight: 600;
   padding: 0 4px;
 }
+/* Deleting a Dot is a destructive action: keep it visually apart and loud. */
+.space-access-fields.danger-zone {
+  border-color: #e4c4bd;
+}
+.space-access-fields.danger-zone legend {
+  color: #9b4a32;
+}
+.danger-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border-color: #c86d58;
+  color: #9b4a32;
+  background: #fdf6f4;
+}
+.danger-button:hover:not(:disabled) {
+  background: #f7e5e0;
+}
+.danger-button:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+.delete-dot-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 10px;
+}
 
 .space-nav-row {
   display: flex;
@@ -3767,6 +3833,17 @@ h3 {
   overflow: auto;
   font-size: 13px;
   line-height: 1.65;
+  overflow-wrap: anywhere;
+}
+.page-review-body table {
+  width: 100%;
+  max-width: 100%;
+  table-layout: fixed;
+  border-collapse: collapse;
+}
+.page-review-body td,
+.page-review-body th {
+  overflow-wrap: anywhere;
 }
 .page-review-body h3 {
   font-size: 20px;

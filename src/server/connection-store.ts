@@ -231,4 +231,13 @@ export class ConnectionStore {
       )
       .run(JSON.stringify(result), threadId, toolCallId);
   }
+  /**
+   * Remove every connected-tool approval and action record for one
+   * conversation. Called when that conversation is deleted, so nothing in the
+   * connections tables keeps referencing a thread that no longer exists.
+   */
+  deleteThreadData(threadId: string) {
+    this.db.prepare('DELETE FROM mcp_actions WHERE threadId=?').run(threadId);
+    this.db.prepare('DELETE FROM mcp_approvals WHERE threadId=?').run(threadId);
+  }
 }

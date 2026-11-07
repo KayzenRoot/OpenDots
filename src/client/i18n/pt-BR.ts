@@ -562,6 +562,8 @@ export const ptBR: Record<keyof typeof en, string> = {
   'space.pageNotFound': 'Página não encontrada',
   'space.loadingPage': 'Carregando a página…',
   'space.backToAllPages': 'Voltar para todas as páginas',
+  'space.deletedElsewhere':
+    'Esta página foi excluída em outra aba. Seu rascunho continua disponível aqui; baixe-o antes de sair.',
 
   // Task controls
   'task.pause': 'Pausar tarefa',
@@ -617,6 +619,9 @@ export const ptBR: Record<keyof typeof en, string> = {
     'Sincronização de conversas indisponível. Verifique a conexão com o runtime.',
   'threads.empty': 'Sua primeira conversa vai ficar aqui.',
   'threads.loadMore': 'Carregar mais conversas',
+  'threads.deleteConfirm':
+    'Excluir "{title}"? A conversa e as mensagens dela são removidas para sempre. Não dá para desfazer.',
+  'threads.deleteAria': 'Excluir a conversa "{title}"',
 
   // Workspace dialog
   'dialog.titleSpace': 'Um Space para alguma coisa.',
@@ -688,6 +693,13 @@ export const ptBR: Record<keyof typeof en, string> = {
   'dialog.setupGuide': 'Guia de instalação do modelo ↗',
   'dialog.memoryHelp':
     'Memórias são preferências explícitas, não aprendizado automático. Evite segredos; memórias ativas vão para o provedor do seu modelo.',
+  'dialog.deleteDotLegend': 'Excluir este Dot',
+  'dialog.deleteDotHelp':
+    'Excluir remove este Dot e suas configurações. As conversas, os Spaces e as páginas dele são mantidos: um Dot com conversas não pode ser excluído até que elas sejam removidas.',
+  'dialog.deleteDot': 'Excluir este Dot…',
+  'dialog.deleteDotType': 'Digite "{name}" para confirmar a exclusão.',
+  'dialog.deleteDotConfirm': 'Excluir Dot',
+  'dialog.deleteDotFailed': 'Não foi possível excluir este Dot.',
 
   // Editor
   'editor.placeholder': 'Comece a escrever, ou digite / para blocos…',
