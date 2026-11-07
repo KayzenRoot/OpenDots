@@ -199,3 +199,27 @@ apiUrl }`. Skills are per-Dot data the owner can store locally.
 - **Alternatives:** (a) do not migrate, only reference by URL — weaker
   traceability; (b) migrate silently — rejected: misattributes authorship;
   (c) rewrite issue text — rejected: destroys provenance.
+
+## ADR-0011 — No agent delegation for v1
+
+**Date:** 2026-11-07 · **Status:** Accepted · **Closes:** #108
+
+**Context.** The external review asked whether 'several teams' means agents
+delegating to each other. Three options existed: no delegation (each Dot is a
+specialist the operator routes to), explicit delegation (a Dot hands a task to
+another Dot), or a per-sector supervisor that plans and dispatches.
+
+**Decision.** Option A for v1: **no delegation**. Each Dot is a specialist;
+the operator routes by talking to the right one. Explicit delegation (option B)
+is deferred until there is a permission model, a depth limit, per-hop cost
+accounting and an audit trace designed as a unit.
+
+**Why not B or C now.** Delegation multiplies every security requirement the
+product already has: a delegated task crosses Dot permission boundaries, spends
+two model budgets, and produces an answer that is attributable to neither agent
+alone. Building it before the single-Dot permissions and cost tracking are
+proven would stack unaudited authority on unaudited authority.
+
+**Consequences.** Dots cannot hand work to each other; the operator is the
+router. Revisit when a real workload needs it, with the four requirements above
+designed first.
